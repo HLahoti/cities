@@ -14,7 +14,8 @@ from ..metrics.morphology import DEFAULT_METRICS
 @dataclass
 class RecordSpec:
     every: int = 1  # snapshot layers every N steps (records are kept every step)
-    layers: list[str] = field(default_factory=lambda: ["urban", "roads", "anchor_potential"])
+    # Layers missing from the grid are skipped, so "density" is free when absent.
+    layers: list[str] = field(default_factory=lambda: ["urban", "density", "roads", "anchor_potential"])
     metrics: list[str] = field(default_factory=lambda: list(DEFAULT_METRICS))
 
     @classmethod

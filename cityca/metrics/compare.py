@@ -49,3 +49,25 @@ def r_squared(x, y) -> float:
     if x.size < 2 or np.std(x) == 0 or np.std(y) == 0:
         return float("nan")
     return float(np.corrcoef(x, y)[0, 1] ** 2)
+
+
+def density_errors(observed: np.ndarray, simulated: np.ndarray, mask: np.ndarray,
+                   reference: np.ndarray | None = None) -> dict[str, float]:
+    """Errors of a simulated density map on ``mask`` cells.
+
+    With ``reference`` (e.g. the start-year density, i.e. "nothing changes"),
+    also returns ``skill`` = 1 − MAE_sim / MAE_ref: > 0 means the model beats
+    persistence, 1 is perfect.
+    """
+    o, s = observed[mask].astype(float), simulated[mask].astype(float)
+    if o.size == 0:
+        return {"mae": float("nan"), "rmse": float("nan"), "bias": float("nan"), "r": float("nan")}
+    err = s - o
+    out = {"mae": float(np.abs(err).mean()), "rmse": float(np.sqrt((err ** 2).mean())),
+           "bias": float(err.mean()),
+           "r": float(np.corrcoef(o, s)[0, 1]) if o.std() > 0 and s.std() > 0 else float("nan")}
+    if reference is not None:
+        mae_ref = float(np.abs(reference[mask].astype(float) - o).mean())
+        out["mae_persistence"] = mae_ref
+        out["skill"] = 1.0 - out["mae"] / mae_ref if mae_ref > 0 else float("nan")
+    return out

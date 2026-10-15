@@ -78,25 +78,25 @@ def _cmd_calibrate(a):
         space[k] = (float(lo), float(hi))
     trials = calibrate(lambda sc, s: build_simulation(sc, load_scenario_city(sc, base_city), seed=s),
                        grid0, spec, space, samples=a.samples, runs=a.runs, seed=a.seed,
-                       until=a.until)
+                       until=a.until, objective=a.objective)
     for t in trials[:5]:
         print(json.dumps({k: (round(v, 3) if isinstance(v, float) else v) for k, v in t.items()}))
     out = output_dir(spec, grid0.name, "calibrate", a.out, a.root)
     (out / "trials.json").write_text(json.dumps(trials, indent=1))
     (out / "calibration.json").write_text(json.dumps(
         {"scenario": a.scenario, "space": space, "samples": a.samples, "runs": a.runs,
-         "until": a.until,
+         "until": a.until, "objective": a.objective,
          "seed": a.seed, "best": trials[0]}, indent=1))
     print("outputs in", out)
 
 
 def _cmd_list(a):
     from .anchors.anchor import ANCHOR_KINDS
-    from .engine import ALLOCATORS, DEMANDS, EVENTS, FACTORS, MODELS
+    from .engine import ALLOCATORS, DEMANDS, EVENTS, FACTORS, MODELS, PROCESSES
     from .grid import DERIVED, GENERATORS, LAYERS, SOURCES
     from .kernels import DECAY
     from .metrics import METRICS
-    for reg in (MODELS, FACTORS, DEMANDS, ALLOCATORS, EVENTS, DECAY, LAYERS, DERIVED,
+    for reg in (MODELS, PROCESSES, FACTORS, DEMANDS, ALLOCATORS, EVENTS, DECAY, LAYERS, DERIVED,
                 SOURCES, GENERATORS, METRICS):
         print(f"{reg.kind:>16}: {', '.join(reg.names())}")
     print(f"{'anchor kind':>16}: {', '.join(sorted(ANCHOR_KINDS))}")
@@ -143,6 +143,8 @@ def main(argv=None):
     s.add_argument("scenario")
     s.add_argument("--space", nargs="+", required=True, help="param=low:high (dotted paths ok)")
     s.add_argument("--until", type=float, help="calibrate on observed years <= this (hold out later ones)")
+    s.add_argument("--objective", default="fom_area", choices=["fom_area", "density"],
+                   help="fom_area: change placement x area accuracy; density: densification skill")
     s.add_argument("--samples", type=int, default=20)
     s.add_argument("--runs", type=int, default=2)
     s.add_argument("--seed", type=int, default=0)

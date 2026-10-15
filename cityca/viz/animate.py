@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib import animation
 
 from . import style
-from .render import render_map
+from .render import density_colorbar, render_map
 
 
 def first_urban_year(grid0, history) -> np.ndarray:
@@ -25,11 +25,13 @@ def first_urban_year(grid0, history) -> np.ndarray:
 
 
 def animate_history(grid0, history, out: str | Path, fps: int = 8, show_field: bool = False,
-                    title: str | None = None, dpi: int = 110, grid_final=None) -> Path:
+                    title: str | None = None, dpi: int = 110, grid_final=None,
+                    quiet_kinds=("station",)) -> Path:
     """Render every recorded frame of ``history`` (started from ``grid0``).
 
     ``grid_final`` supplies the anchor list (scenario anchors are drawn with
-    their status at each frame's year).
+    their status at each frame's year). Openings of ``quiet_kinds`` anchors are
+    not marked on the timeline.
     """
     style.apply()
     out = Path(out)
@@ -37,11 +39,22 @@ def animate_history(grid0, history, out: str | Path, fps: int = 8, show_field: b
     ref = grid_final or grid0
     first = first_urban_year(grid0, history)
     years = history.years
-    area = history.series("urban_area")
+    has_density = "density" in history.frames[0].layers
+    if has_density and np.isfinite(history.series("built_surface")).any():
+        area = history.series("built_surface") * grid0.cell_size ** 2 / 1e6
+        series_title = "Built-up area (km², Σ density × cell area)"
+    else:
+        area = history.series("urban_area")
+        series_title = "Urban area (cells)"
     y0, y1 = history.frames[0].year, history.frames[-1].year
 
     fig = plt.figure(figsize=(7.2, 8.4))
-    ax_map = fig.add_axes([0.02, 0.24, 0.96, 0.72])
+    if has_density:
+        ax_map = fig.add_axes([0.02, 0.24, 0.84, 0.72])
+        cax = fig.add_axes([0.88, 0.36, 0.022, 0.48])
+        density_colorbar(ax_map, cax=cax, label="Built-up density")
+    else:
+        ax_map = fig.add_axes([0.02, 0.24, 0.96, 0.72])
     ax_ts = fig.add_axes([0.11, 0.06, 0.84, 0.13])
 
     def draw(i):
@@ -51,17 +64,18 @@ def animate_history(grid0, history, out: str | Path, fps: int = 8, show_field: b
         phi = f.layers.get("anchor_potential") if show_field else None
         render_map(ax_map, ref, urban=f.layers["urban"], roads=f.layers.get("roads", grid0["roads"]),
                    urbanized_at=ua, year=f.year, start_year=y0, end_year=y1, phi=phi,
+                   density=f.layers.get("density"), colorbar=False,
                    title=f"{title or ref.name} — {f.year:g}")
         ax_ts.clear()
         ax_ts.plot(years, area, color=style.GRID, lw=2)
         k = years <= f.year
         ax_ts.plot(years[k], area[k], color=style.SERIES[0], lw=2)
         ax_ts.plot([f.year], [area[k][-1]], "o", ms=8, color=style.SERIES[0], mec=style.SURFACE, mew=2)
-        ax_ts.set_title("Urban area (cells)", loc="left", fontsize=9)
+        ax_ts.set_title(series_title, loc="left", fontsize=9)
         ax_ts.set_xlim(years[0], years[-1])
         ax_ts.set_ylim(0, np.nanmax(area) * 1.08)
         for e in history.events:
-            if e["year"] <= f.year:
+            if e["year"] <= f.year and e.get("kind") not in quiet_kinds:
                 ax_ts.axvline(e["year"], color=style.INK_MUTED, lw=1, ls="--")
         return []
 
@@ -90,7 +104,7 @@ def save_frames(grid0, history, out_dir: str | Path, every: int = 1, dpi: int = 
         fig, ax = plt.subplots(figsize=(7, 7))
         render_map(ax, ref, urban=f.layers["urban"], roads=f.layers.get("roads"),
                    urbanized_at=np.where(f.layers["urban"] > 0, first, np.nan),
-                   year=f.year, start_year=y0, end_year=y1)
+                   year=f.year, start_year=y0, end_year=y1, density=f.layers.get("density"))
         p = out_dir / f"frame_{f.step:04d}.png"
         fig.savefig(p, dpi=dpi, bbox_inches="tight")
         plt.close(fig)

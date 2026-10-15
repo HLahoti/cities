@@ -115,6 +115,12 @@ analogy lives: `allometric` is West–Brown–Enquist's ontogenetic growth law
 other laws are `logistic`, `exponential`, `constant` and `series`. An anchor's
 `capacity` raises K: a new airport increases the city's adult size.
 
+**Processes** run after the growth model each step, and are listed under
+`"processes"` in a scenario. `densify` evolves the `density` layer (built-up
+share 0–1) by logistic thickening toward a capacity that depends on factors.
+If a city has no density data, it initialises density from the urban mask.
+Calibrate it with `--objective density`.
+
 **Events** fire at a given year: `add_road`, `add_anchor`, `remove_anchor`,
 `burn` (any geometry into any layer, e.g. a greenbelt), `urbanize`, and
 `set_param` (a policy or economic shock).
@@ -161,6 +167,15 @@ A scenario run writes the following to its output directory:
 * `radial_profile.png`: density decay with distance (Batty 2008).
 * `validation_map.png`: hits, misses and false alarms against observed change.
 * `growth.mp4`: an animated map plus a timeline marking events.
+* `density_vs_observed.png` and `density_expected.png`: observed vs
+  simulated built-up density with a difference map, and the Monte Carlo
+  expected-density map (when density is modelled).
+
+When a city has a `density` layer, maps draw it as a **heatmap**: a single
+warm hue that fades in from bare land (transparent) to fully built (deep), with
+a colour bar. Smoothing is display-only (`smooth=` in cells). Without
+density, or with `mode="age"`, urban cells are coloured by when they were
+urbanised.
 * `probability.png` and `ensemble.png`: the Monte Carlo P(urban) map and
   the mean ± s.d. of the metrics.
 * `history/`: every frame plus per-step records.
@@ -194,9 +209,10 @@ effect on growth around it is strongly overestimated.
 
 * **Real data import.** Add GeoTIFF and shapefile sources (rasterio,
   geopandas) as new `SOURCES`, and possibly OSM roads.
-* **Urban intensity.** `urban` is binary for now. Continuous density, or
-  several land-use states with competing transitions, would make the organism
-  analogy richer.
+* **Urban intensity.** Built-up density (footprint share) is modelled. Height
+  and floor area are not, so vertical densification, such as near metro
+  stations, is invisible. Several land-use states with competing transitions
+  would make the organism analogy richer.
 * **Co-evolving networks.** Roads are static except for scheduled events and
   anchor access roads. Growing the network with the city (WBE-style supply
   networks) is the natural next step.

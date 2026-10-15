@@ -110,9 +110,26 @@ def mean_center_distance(g) -> float:
     return float(vals.mean()) if vals.size else float("nan")
 
 
+@METRICS.register("built_surface")
+def built_surface(g) -> float:
+    """Total built-up surface in cell units (Σ density); urban area if no density."""
+    if hasattr(g, "layers") and "density" in g.layers:
+        return float(g["density"].sum())
+    return urban_area(g)
+
+
+@METRICS.register("mean_urban_density")
+def mean_urban_density(g) -> float:
+    if not (hasattr(g, "layers") and "density" in g.layers):
+        return float("nan")
+    u = _urban(g)
+    return float(g["density"][u].mean()) if u.any() else 0.0
+
+
 def compute(grid, names) -> dict[str, float]:
     return {n: METRICS.get(n)(grid) for n in names}
 
 
 DEFAULT_METRICS = ["urban_area", "edges", "clusters", "largest_cluster_share",
-                   "fractal_dimension", "radius_of_gyration"]
+                   "fractal_dimension", "radius_of_gyration", "built_surface",
+                   "mean_urban_density"]

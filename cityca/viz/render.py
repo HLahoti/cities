@@ -11,7 +11,7 @@ from ..grid.layers import spec_for
 from . import style
 
 ANCHOR_MARKERS = {"cbd": "*", "subcenter": "o", "airport": "^", "port": "s", "station": "D",
-                  "university": "p", "industrial": "h", "generic": "o"}
+                  "university": "p", "industrial": "h", "tech_park": "P", "generic": "o"}
 
 
 def _rgb(c):
@@ -28,32 +28,69 @@ def base_rgb(grid) -> np.ndarray:
     return np.clip(img, 0, 1)
 
 
+def density_rgba(density: np.ndarray, full_at: float = 0.35, smooth: float = 1.0) -> np.ndarray:
+    """Heatmap colours plus an alpha that fades in from bare land (0) to opaque.
+
+    ``smooth`` (cells) applies a light Gaussian blur for display only, giving a
+    continuous heatmap instead of hard cell edges; 0 draws raw cells.
+    """
+    d = np.clip(np.nan_to_num(density), 0.0, 1.0)
+    if smooth > 0:
+        from scipy import ndimage
+        d = ndimage.gaussian_filter(d, smooth)
+    rgba = style.DENSITY(d)
+    rgba[..., 3] = np.clip(d / full_at, 0.0, 1.0)
+    return rgba
+
+
 def render_map(ax, grid, urban=None, roads=None, urbanized_at=None, year=None,
                start_year=None, end_year=None, phi=None, anchors=True,
-               title: str | None = None, show_legend: bool = True):
+               title: str | None = None, show_legend: bool = True,
+               density=None, mode: str = "auto", colorbar: bool = True,
+               smooth: float = 1.0):
     """Composite map. Arrays default to the grid's current layers, so the same
-    function draws both the live grid and recorded history frames."""
+    function draws both the live grid and recorded history frames.
+
+    ``mode``: ``density`` draws built-up density as a heatmap (the default when
+    a density layer exists); ``age`` colours urban cells by when they were
+    urbanised.
+    """
     urban = grid["urban"] if urban is None else urban
     roads = grid["roads"] if roads is None else roads
-    urbanized_at = grid["urbanized_at"] if urbanized_at is None else urbanized_at
     year = grid.year if year is None else year
-    start_year = np.nanmin(urbanized_at) if start_year is None else start_year
-    end_year = max(year, start_year + 1) if end_year is None else end_year
+    if density is None and "density" in grid.layers:
+        density = grid["density"]
+    if mode == "auto":
+        mode = "density" if density is not None else "age"
 
     img = base_rgb(grid)
     for cls, col in sorted(style.ROAD_COLORS.items()):
         img[roads == cls] = _rgb(col)
     u = urban > 0
-    old = u & (urbanized_at <= start_year)
-    img[old] = _rgb(style.URBAN_OLD)
-    new = u & ~old
-    if new.any():
-        t = (urbanized_at[new] - start_year) / max(end_year - start_year, 1e-9)
-        img[new] = style.GROWTH(np.clip(t, 0, 1))[:, :3]
-    # Draw major roads over urban so the network stays legible.
+
+    if mode == "density":
+        rgba = density_rgba(density, smooth=smooth)
+        a = rgba[..., 3:4]
+        img = img * (1 - a) + rgba[..., :3] * a
+        over = u
+    elif mode == "age":
+        urbanized_at = grid["urbanized_at"] if urbanized_at is None else urbanized_at
+        start_year = np.nanmin(urbanized_at) if start_year is None else start_year
+        end_year = max(year, start_year + 1) if end_year is None else end_year
+        old = u & (urbanized_at <= start_year)
+        img[old] = _rgb(style.URBAN_OLD)
+        new = u & ~old
+        if new.any():
+            t = (urbanized_at[new] - start_year) / max(end_year - start_year, 1e-9)
+            img[new] = style.GROWTH(np.clip(t, 0, 1))[:, :3]
+        over = u
+    else:
+        raise ValueError(f"Unknown map mode '{mode}'")
+    # Draw major roads over built-up land so the network stays legible.
     for cls in (2, 3):
-        m = (roads == cls) & u
-        img[m] = img[m] * 0.4 + _rgb(style.ROAD_COLORS[cls]) * 0.6
+        m = (roads == cls) & over
+        img[m] = img[m] * 0.55 + _rgb(style.ROAD_COLORS[cls]) * 0.45
+    img[grid["water"] > 0] = _rgb(style.WATER)
     ax.imshow(img, interpolation="nearest")
 
     if phi is not None and np.ptp(phi) > 0:
@@ -64,23 +101,54 @@ def render_map(ax, grid, urban=None, roads=None, urbanized_at=None, year=None,
         draw_anchors(ax, grid, year)
     style.map_axes(ax)
     ax.set_title(title or f"{grid.name} — {year:g}", loc="left")
+    if mode == "density" and colorbar:
+        density_colorbar(ax)
     if show_legend:
-        handles = [Patch(color=style.URBAN_OLD, label=f"Urban by {start_year:g}"),
-                   Patch(color=style.GROWTH(0.15), label="Earlier growth"),
-                   Patch(color=style.GROWTH(0.85), label="Recent growth"),
-                   Patch(color=style.WATER, label="Water"),
-                   Patch(color=style.ROAD_COLORS[3], label="Highway")]
+        if mode == "age":
+            handles = [Patch(color=style.URBAN_OLD, label=f"Urban by {start_year:g}"),
+                       Patch(color=style.GROWTH(0.15), label="Earlier growth"),
+                       Patch(color=style.GROWTH(0.85), label="Recent growth")]
+        else:
+            handles = []
+        handles += [Patch(color=style.WATER, label="Water"),
+                    Patch(color=style.ROAD_COLORS[3], label="Highway")]
         if (grid["excluded"] > 0).any():
             handles.append(Patch(color="#a9c9a0", label="Protected"))
+        if any(a.kind == "station" for a in grid.anchors):
+            from matplotlib.lines import Line2D
+            handles.append(Line2D([], [], marker="D", ls="none", ms=4, mfc=style.INK,
+                                  mec=style.SURFACE, label="Metro station"))
         ax.legend(handles=handles, loc="lower right", fontsize=7, framealpha=0.85,
                   frameon=True, facecolor=style.SURFACE, edgecolor=style.GRID)
     return ax
 
 
-def draw_anchors(ax, grid, year=None):
+def density_colorbar(ax, cax=None, label="Built-up density (share of cell built)"):
+    """Colour bar for the density heatmap (0 = bare land, 1 = fully built)."""
+    from matplotlib.cm import ScalarMappable
+    from matplotlib.colors import Normalize
+    sm = ScalarMappable(norm=Normalize(0, 1), cmap=style.DENSITY)
+    if cax is None:
+        cb = plt.colorbar(sm, ax=ax, fraction=0.046, pad=0.02)
+    else:
+        cb = plt.colorbar(sm, cax=cax)
+    cb.set_label(label, fontsize=8)
+    cb.ax.tick_params(labelsize=7)
+    return cb
+
+
+def draw_anchors(ax, grid, year=None, quiet_kinds=("station",)):
+    """Anchor markers; ``quiet_kinds`` get small unlabelled markers (e.g. 80 stations)."""
     year = grid.year if year is None else year
     for a in grid.anchors:
         m = ANCHOR_MARKERS.get(a.kind, "o")
+        if a.kind in quiet_kinds:
+            x, y = a.position
+            if a.is_open(year):
+                ax.plot(x, y, m, ms=4, mfc=style.INK, mec=style.SURFACE, mew=0.6)
+            elif a.strength(year) > 0:
+                ax.plot(x, y, m, ms=4, mfc=style.SURFACE, mec=style.INK, mew=0.8)
+            continue
         s = a.strength(year)
         x, y = a.position
         if a.is_open(year):
@@ -185,3 +253,24 @@ def render_comparison(ax, grid, initial, observed, simulated, title=None):
     labels = ["Already urban", "Hit (both grew)", "Miss (observed only)", "False alarm (sim only)"]
     ax.legend(handles=[Patch(color=style.COMPARE(k), label=l) for k, l in enumerate(labels)],
               loc="lower right", fontsize=7, frameon=True, facecolor=style.SURFACE, edgecolor=style.GRID)
+
+
+def render_density_comparison(axes, grid, observed, simulated, title_obs=None, title_sim=None,
+                              year=None):
+    """Three panels: observed density, simulated density, simulated − observed."""
+    from matplotlib.cm import ScalarMappable
+    year = grid.year if year is None else year
+    for ax, d, t in ((axes[0], observed, title_obs or f"Observed density {year:g}"),
+                     (axes[1], simulated, title_sim or f"Simulated density {year:g}")):
+        render_map(ax, grid, urban=d >= 0.25, density=d, mode="density", year=year,
+                   title=t, show_legend=False, colorbar=False, anchors=False)
+    density_colorbar(axes[1])
+    ax = axes[2]
+    diff = np.where(grid["water"] > 0, np.nan, simulated - observed)
+    ax.imshow(base_rgb(grid), interpolation="nearest")
+    show = np.ma.masked_where(~np.isfinite(diff) | (np.abs(np.nan_to_num(diff)) < 0.05), diff)
+    im = ax.imshow(show, cmap=style.DIVERGING, norm=TwoSlopeNorm(0, -1, 1), interpolation="nearest")
+    style.map_axes(ax)
+    ax.set_title("Simulated − observed density", loc="left")
+    cb = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.02)
+    cb.set_label("Δ density (red = model too dense)", fontsize=8)

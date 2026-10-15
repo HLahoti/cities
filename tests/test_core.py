@@ -192,3 +192,48 @@ def test_cluster_size_map():
 def test_station_anchor_does_not_seed():
     a = Anchor.from_dict({"name": "s", "kind": "station", "position": [0, 0]})
     assert a.seeds < 0.1 and a.metric == "euclidean"
+
+
+def test_densify_process():
+    from cityca.engine import build_processes
+    g = small_city()
+    procs = build_processes([{"type": "densify", "rate": 0.3, "new_density": 0.4,
+                              "capacity_factors": []}])
+    sim = Simulation(g, MODELS.build({"type": "potential", "allocator": "top_n",
+                                      "demand": {"type": "constant", "cells": 20}}),
+                     seed=0, processes=procs)
+    d_start = g["density"].copy()  # initialised from the urban mask
+    assert d_start[30, 30] > 0 and d_start[0, 59] == 0
+    sim.run(steps=5)
+    u0 = d_start > 0
+    assert (g["density"][u0] >= d_start[u0] - 1e-6).all()  # never thins
+    assert g["density"][u0].mean() > d_start[u0].mean()  # thickens
+    new = (g["urban"] > 0) & ~u0
+    assert (g["density"][new] >= 0.4 - 1e-6).all()  # new cells start at new_density
+    assert g["density"].max() <= 1.0
+    assert "density" in sim.history.frames[-1].layers
+
+
+def test_density_errors_skill():
+    from cityca.metrics import density_errors
+    obs = np.array([[0.5, 0.9], [0.8, 1.0]])
+    ref = np.array([[0.3, 0.7], [0.6, 0.8]])
+    mask = np.ones_like(obs, bool)
+    assert density_errors(obs, obs, mask, reference=ref)["skill"] == pytest.approx(1.0)
+    assert density_errors(obs, ref, mask, reference=ref)["skill"] == pytest.approx(0.0)
+
+
+def test_density_heatmap_render():
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from cityca.viz import render_map
+    from cityca.viz.render import density_rgba
+    rgba = density_rgba(np.array([[0.0, 0.5, 1.0]]), smooth=0)
+    assert rgba[0, 0, 3] == 0 and rgba[0, 2, 3] == 1  # bare land transparent, full opaque
+    g = small_city()
+    g["density"] = g["urban"] * 0.8
+    fig, ax = plt.subplots()
+    render_map(ax, g)  # auto -> density mode with colour bar
+    assert len(fig.axes) == 2
+    plt.close(fig)

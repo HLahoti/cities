@@ -45,6 +45,8 @@ def _spec(**kw) -> LayerSpec:
 # --- Core state -------------------------------------------------------------
 _spec(name="urban", dtype="uint8", kind="binary", cmap="Greys",
       description="1 if the cell is developed/urbanised")
+_spec(name="density", dtype="float32", cmap="cityca_density",
+      description="Built-up density: share of the cell covered by buildings (0..1)")
 _spec(name="urbanized_at", dtype="float32", default=np.nan, cmap="plasma",
       description="Year the cell became urban (NaN if never)")
 

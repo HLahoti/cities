@@ -33,7 +33,8 @@
     "caveats": [
       "OSM gives today's network; known post-2004 highways are removed and re-added as scenario events, but newer secondary roads remain.",
       "Observed 2019 comes from WSF2019 (Sentinel/Landsat, 10 m) while earlier years come from WSF-Evolution (Landsat, 30 m); 2019 uses a ratio-harmonised threshold and 2019 \u2287 2015 \u2014 lowest confidence.",
-      "Lakes and protected land are present-day extents."
+      "Lakes and protected land are present-day extents.",
+      "density = share of built 30 m WSF-Evo pixels per cell (horizontal built-up surface, not floor area or height); observed density is only given for WSF-Evo years (2006-2015), not 2019."
     ]
   },
   "layers": {
@@ -64,6 +65,10 @@
     "rail": {
       "source": "npz",
       "key": "rail"
+    },
+    "density": {
+      "source": "npz",
+      "key": "density"
     }
   },
   "features": [],
@@ -86,6 +91,8 @@
       "open_year": null,
       "anticipation": 0.25,
       "ramp_years": 0.0,
+      "ramp_shape": "linear",
+      "seeds": 1.0,
       "footprint_radius": 0.0,
       "access_road": 0,
       "meta": {}
@@ -107,8 +114,10 @@
       "metric": "travel",
       "announce_year": null,
       "open_year": null,
-      "anticipation": 0.35,
-      "ramp_years": 8.0,
+      "anticipation": 0.05,
+      "ramp_years": 20.0,
+      "ramp_shape": "logistic",
+      "seeds": 1.0,
       "footprint_radius": 0,
       "access_road": 0,
       "meta": {
@@ -132,6 +141,8 @@
       "open_year": null,
       "anticipation": 0.25,
       "ramp_years": 0.0,
+      "ramp_shape": "linear",
+      "seeds": 1.0,
       "footprint_radius": 0.0,
       "access_road": 0,
       "meta": {}
@@ -153,6 +164,8 @@
       "open_year": null,
       "anticipation": 0.25,
       "ramp_years": 0.0,
+      "ramp_shape": "linear",
+      "seeds": 1.0,
       "footprint_radius": 0.0,
       "access_road": 0,
       "meta": {}
@@ -176,6 +189,8 @@
       "open_year": null,
       "anticipation": 0.25,
       "ramp_years": 0.0,
+      "ramp_shape": "linear",
+      "seeds": 1.0,
       "footprint_radius": 0.0,
       "access_road": 0,
       "meta": {}
@@ -188,6 +203,10 @@
         "urban": {
           "source": "npz",
           "key": "obs_2006_urban"
+        },
+        "density": {
+          "source": "npz",
+          "key": "obs_2006_density"
         }
       }
     },
@@ -197,6 +216,10 @@
         "urban": {
           "source": "npz",
           "key": "obs_2008_urban"
+        },
+        "density": {
+          "source": "npz",
+          "key": "obs_2008_density"
         }
       }
     },
@@ -206,6 +229,10 @@
         "urban": {
           "source": "npz",
           "key": "obs_2010_urban"
+        },
+        "density": {
+          "source": "npz",
+          "key": "obs_2010_density"
         }
       }
     },
@@ -215,6 +242,10 @@
         "urban": {
           "source": "npz",
           "key": "obs_2012_urban"
+        },
+        "density": {
+          "source": "npz",
+          "key": "obs_2012_density"
         }
       }
     },
@@ -224,6 +255,10 @@
         "urban": {
           "source": "npz",
           "key": "obs_2015_urban"
+        },
+        "density": {
+          "source": "npz",
+          "key": "obs_2015_density"
         }
       }
     },

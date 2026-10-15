@@ -13,6 +13,7 @@ cells back to longitude and latitude.
 
 | Layer | Source | Notes |
 |---|---|---|
+| `density` (2004) and observed `density` 2006–2015 | DLR WSF Evolution v1 | Share of each cell's 30 m pixels that are built (0–1). This measures horizontal built-up surface, not floor area or height. 2019 has no density because the 10 m sensor isn't comparable. |
 | `urban`, `urbanized_at`, `observed` 2006–2015 | DLR **World Settlement Footprint Evolution** v1, tile 76_12 (CC BY 4.0) | Gives the year each 30 m pixel was first built. A cell counts as urban when ≥ 25 % of its pixels are built. |
 | `observed` 2019 | DLR **WSF 2019** v1 (CC BY 4.0) | 10 m pixels. The threshold is scaled to 0.139 to match WSF-Evo, and 2019 is assumed to include everything urban in 2015. **This is the lowest-confidence year.** |
 | `roads`, `rail`, `water`, `excluded` | **OpenStreetMap** via Overpass (ODbL) | Present-day data, filtered back to 2004 (see below). Protected land covers military areas, aerodromes, reserves and parks ≥ 5 ha; forest is set to 0.8. |
@@ -153,3 +154,40 @@ Every variant used the same calibration budget (60 trials × 2 runs, fit on
   where reality left gaps.
 * **Better data would help:** a continuous density or intensity layer so
   metro densification shows up, and a single-sensor "now" year.
+
+## v3: built-up density (2026-10-15)
+
+`urban` used to be a yes/no mask. The city now also carries `density`, the
+built-up share of each cell (0–1), and maps draw it as a heatmap that runs
+from bare land to fully built. Simulations evolve density with a pluggable
+**process**, `densify`. Urban cells thicken logistically,
+`d ← d + r·d·(1 − d/K(x))`, and new cells start at `new_density`. The local
+capacity `K(x)` rises with how much city surrounds the cell (`urban_field`)
+and with the anchor potential.
+
+The densification parameters were calibrated on observed density for
+2006–2012 (`--objective density`), with the v2 growth parameters held fixed.
+2015 is held out. Scoring uses only cells urban in both maps; skill is
+1 − MAE / MAE of "2004 density unchanged".
+
+| Run (20-run ensembles) | 2015 density MAE | 2015 skill | Δdensity in 2004 core, obs +0.139 | Δdensity on fringe, obs +0.217 | Δdensity ≤1 km of metro, obs +0.049 |
+|---|---|---|---|---|---|
+| **calibrated v3** | **0.106** | **+0.51** | +0.137 | +0.195 | +0.067 |
+| control: no densification | 0.185 | +0.14 | +0.000 | +0.034 | +0.002 |
+| control: no anchor term in capacity | 0.107 | +0.50 | +0.132 | +0.191 | +0.067 |
+| control: no metro | 0.106 | +0.51 | +0.137 | +0.194 | +0.067 |
+
+* **Densification is real and the model captures it.** Cells already urban in
+  2004 went from 0.75 to 0.89 built-up by 2015. The calibrated process
+  matches the core and fringe gains closely and roughly halves the density
+  error on the held-out year.
+* **Anchors and metro add almost nothing to the density fit.** Within 1 km of
+  stations the land was already ~92 % built-up in 2004, so there is little
+  footprint left to fill. The metro's effect is vertical (more floor space),
+  which a footprint dataset cannot see. Testing it needs building-height or
+  floor-area data, such as GHSL-BUILT-H or the 3D building footprints that
+  have appeared since 2020.
+* **Remaining density errors.** The north and east fringe come out too dense
+  (the simulated fringe is more solid than reality). The south and west
+  fringe come out not dense enough, as the difference map in the assessment
+  output shows.

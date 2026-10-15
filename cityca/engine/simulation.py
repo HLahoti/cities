@@ -6,7 +6,7 @@ Per step (year t → t + dt):
 2. fire scheduled events whose year has arrived;
 3. open anchors whose ``open_year`` has arrived (footprint + access road);
 4. recompute the anchor potential field Φ(t) into ``grid["anchor_potential"]``;
-5. run the growth model;
+5. run the growth model, then any extra processes (e.g. densification);
 6. record stats, metrics and (every N steps) layer snapshots.
 """
 
@@ -25,9 +25,11 @@ from .history import Frame, History, RecordSpec
 class Simulation:
     def __init__(self, grid, model: GrowthModel, field: AnchorField | None = None,
                  events: list[Event] | None = None, dt: float = 1.0,
-                 seed: int | None = None, record: RecordSpec | dict | None = None):
+                 seed: int | None = None, record: RecordSpec | dict | None = None,
+                 processes: list | None = None):
         self.grid = grid
         self.model = model
+        self.processes = list(processes or [])
         self.field = field or AnchorField()
         self.events = sorted(events or [], key=lambda e: e.year)
         self.dt = dt
@@ -39,6 +41,8 @@ class Simulation:
         self._opened = {a.name for a in grid.anchors
                         if a.open_year is None or a.open_year < grid.year}
         self.model.reset(grid)
+        for p in self.processes:
+            p.reset(grid)
         self._update_field()
         self._record({"new": 0}, snapshot=True)
 
@@ -63,7 +67,7 @@ class Simulation:
                 info = effects.activate(self.grid, a)
                 self._opened.add(a.name)
                 self.history.events.append({"year": self.grid.year, "event": f"open:{a.name}",
-                                            "type": "anchor_open", **info})
+                                            "type": "anchor_open", "kind": a.kind, **info})
 
     def _record(self, stats: dict, snapshot: bool) -> None:
         rec = {"step": self.step_index, "year": self.grid.year, **stats}
@@ -82,6 +86,8 @@ class Simulation:
         self._update_field()
         ctx = StepContext(self.step_index, self.grid.year, self.dt, self.rng)
         stats = self.model.step(self.grid, ctx)
+        for p in self.processes:
+            stats.update(p.step(self.grid, ctx) or {})
         snap = self.step_index % max(self.record.every, 1) == 0
         self._record(stats, snap)
         return stats

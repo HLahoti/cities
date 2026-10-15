@@ -31,7 +31,19 @@ DIVERGING = LinearSegmentedColormap.from_list(
     "cityca_div", ["#0d366b", "#2a78d6", "#86b6ef", DIVERGING_MID, "#f2a3a2", "#e34948", "#8f1f1f"])
 # Urbanisation year: dark (early) -> light (recent) in one hue (orange).
 GROWTH = LinearSegmentedColormap.from_list("cityca_growth", ["#7a2c0c", "#c2511f", "#eb6834", "#f5a77f", "#fbd5bf"])
+# Built-up density heatmap: one warm hue, barely-tinted -> deep (sequential).
+DENSITY_STEPS = ["#fdeee4", "#fbd5bf", "#f5a77f", "#eb6834", "#d4561f", "#a63a12", "#6e220a"]
+DENSITY = LinearSegmentedColormap.from_list("cityca_density", DENSITY_STEPS)
 COMPARE = ListedColormap(["#d9d8d2", SERIES[0], SERIES[1], SERIES[2]])  # persist, hit, miss, false alarm
+
+
+def _register_cmaps() -> None:
+    for cmap in (DENSITY, SEQUENTIAL, DIVERGING, GROWTH):
+        if cmap.name not in mpl.colormaps:
+            mpl.colormaps.register(cmap)
+
+
+_register_cmaps()
 
 
 def apply() -> None:

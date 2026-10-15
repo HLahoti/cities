@@ -351,7 +351,10 @@ def main():
                               "Observed 2019 comes from WSF2019 (Sentinel/Landsat, 10 m) while "
                               "earlier years come from WSF-Evolution (Landsat, 30 m); 2019 uses a "
                               "ratio-harmonised threshold and 2019 ⊇ 2015 — lowest confidence.",
-                              "Lakes and protected land are present-day extents."]})
+                              "Lakes and protected land are present-day extents.",
+                              "density = share of built 30 m WSF-Evo pixels per cell (horizontal "
+                              "built-up surface, not floor area or height); observed density is "
+                              "only given for WSF-Evo years (2006-2015), not 2019."]})
     grid["elevation"] = elev
     grid["water"] = water
     grid["excluded"] = excluded
@@ -359,12 +362,16 @@ def main():
     grid["rail"] = rail
     u = urban_by[START_YEAR] & ~water
     grid["urban"] = u
+    # Built-up density = share of the cell's 30 m pixels that are built (0..1).
+    grid["density"] = np.where(water, 0.0, frac[START_YEAR])
     ua = np.full(geo.shape, np.nan, np.float32)
     for y in range(START_YEAR, 1984, -1):  # first year each cell crossed the threshold
         ua[urban_by[y] & u] = y
     grid["urbanized_at"] = ua
     for y in EVO_OBSERVED + [2019]:
         grid.observed[float(y)] = {"urban": (urban_by[y] & ~water).astype(np.uint8)}
+    for y in EVO_OBSERVED:  # density only from the single-sensor WSF-Evolution years
+        grid.observed[float(y)]["density"] = np.where(water, 0.0, frac[y]).astype(np.float32)
     for a in CITY_ANCHORS:
         a = dict(a)
         x, y = geo.xy(a.pop("lon"), a.pop("lat"))

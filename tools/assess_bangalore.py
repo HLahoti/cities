@@ -37,12 +37,66 @@ KIA_LONLAT = (77.7075, 13.1976)
 RINGS_KM = [0, 5, 10, 15, 20, 30]
 
 
+DENSITY: dict[str, np.ndarray] = {}  # run label -> (T, H, W) expected density, if recorded
+
+
 def load_run(arg: str):
     label, _, path = arg.rpartition("=")
     d = Path(path)
     s = json.loads((d / "summary.json").read_text())
     z = np.load(d / "ensemble" / "ensemble.npz")
-    return label or s.get("name") or d.name, z["years"], z["probability"]
+    label = label or s.get("name") or d.name
+    if "density" in z.files:
+        DENSITY[label] = z["density"]
+    return label, z["years"], z["probability"]
+
+
+def density_section(city, runs, zones, out, report):
+    """Densification accuracy on cells urban in both observed and simulated maps."""
+    from cityca.metrics import density_errors
+    from cityca.viz.render import render_density_comparison
+    d_years = sorted(y for y, o in city.observed.items() if "density" in o and y > city.year)
+    if not d_years or not DENSITY:
+        return
+    d0 = city["density"]
+    report["density"] = {}
+    print("density (cells urban in both maps; skill = 1 - MAE/MAE[2004 density unchanged])")
+    for name, years, prob in runs:
+        if name not in DENSITY:
+            continue
+        rows = []
+        for y in d_years:
+            i = int(np.argmin(np.abs(years - y)))
+            both = (city.observed[y]["urban"] > 0) & (prob[i] >= 0.5)
+            e = density_errors(city.observed[y]["density"], DENSITY[name][i], both, reference=d0)
+            rows.append({"year": y, **{k: round(v, 4) for k, v in e.items()}})
+        y_last = d_years[-1]
+        i = int(np.argmin(np.abs(years - y_last)))
+        both = (city.observed[y_last]["urban"] > 0) & (prob[i] >= 0.5)
+        zone_rows = {}
+        for z, m in zones.items():
+            e = density_errors(city.observed[y_last]["density"], DENSITY[name][i], both & m, reference=d0)
+            obs_gain = float((city.observed[y_last]["density"] - d0)[both & m].mean()) if (both & m).any() else float("nan")
+            sim_gain = float((DENSITY[name][i] - d0)[both & m].mean()) if (both & m).any() else float("nan")
+            zone_rows[z] = {"skill": round(e.get("skill", float("nan")), 3), "mae": round(e["mae"], 4),
+                            "obs_gain": round(obs_gain, 4), "sim_gain": round(sim_gain, 4),
+                            "cells": int((both & m).sum())}
+        report["density"][name] = {"per_year": rows, "zones_last_year": zone_rows}
+        print(f"  {name}")
+        for r in rows:
+            print(f"    {r['year']:.0f}: MAE {r['mae']:.4f}  bias {r['bias']:+.4f}  r {r['r']:.3f}  skill {r['skill']:+.3f}")
+        for z, r in zone_rows.items():
+            print(f"    {y_last:.0f} {z:38s} skill {r['skill']:+.3f}  Δdensity obs {r['obs_gain']:+.3f} sim {r['sim_gain']:+.3f}  ({r['cells']} cells)")
+    # Map: observed vs first density run at the last density year.
+    name = next(n for n, _, _ in runs if n in DENSITY)
+    years = next(y for n, y, _ in runs if n == name)
+    i = int(np.argmin(np.abs(years - d_years[-1])))
+    fig, axes = plt.subplots(1, 3, figsize=(20, 6.6))
+    render_density_comparison(axes, city, city.observed[d_years[-1]]["density"], DENSITY[name][i],
+                              title_sim=f"{name}: expected density {d_years[-1]:g}", year=d_years[-1])
+    fig.tight_layout()
+    fig.savefig(out / "density_vs_observed.png", dpi=110)
+    plt.close(fig)
 
 
 def zone_stats(u0, obs, p, zone):
@@ -121,12 +175,14 @@ def main(dirs):
         zones[f"metro ≤1 km ({len(st)} stations open by {y_last - 2:g})"] = near(st, 1.0)
         zones["tech parks ≤3 km"] = near(tp, 3.0)
     zones["KIA ≤10 km"] = dist_km < 10
+    zones["2004 urban core"] = u0
     obs_last = city.observed[y_last]["urban"] > 0
     report["zones"] = {}
     for name, years, prob in runs:
         i = int(np.argmin(np.abs(years - y_last)))
         report["zones"][name] = {z: zone_stats(u0, obs_last, prob[i], m) for z, m in zones.items()}
 
+    density_section(city, runs, zones, out, report)
     (out / "assessment.json").write_text(json.dumps(report, indent=1))
 
     # --- figures ----------------------------------------------------------------------

@@ -16,15 +16,27 @@ from ..metrics import compare as cmp
 from ..metrics.morphology import METRICS
 
 
-def score_history(history, grid0, max_year: float | None = None) -> dict:
-    """Compare a run with ``grid0.observed`` snapshots of the urban layer.
+OBJECTIVES = ("fom_area", "density")
+
+
+def score_history(history, grid0, max_year: float | None = None,
+                  objective: str = "fom_area") -> dict:
+    """Compare a run with ``grid0.observed`` snapshots.
 
     Only observed years inside the run (and ≤ ``max_year``) are scored.
+    ``objective`` picks what ``score`` means:
+
+    * ``fom_area`` — figure of merit on change × (1 − area error);
+    * ``density``  — density skill vs persistence, on cells urban in both the
+      observed and simulated maps (densification, separate from placement).
+      Needs observed ``density`` snapshots.
     """
     if not grid0.observed:
         raise ValueError("city has no observed snapshots to calibrate against")
     initial = grid0["urban"]
     out = {"lee_sallee": [], "fom": [], "area_err": []}
+    dens = {"density_mae": [], "density_skill": [], "density_bias": []}
+    d0 = grid0["density"] if "density" in grid0.layers else None
     sim_m = {k: [] for k in ("urban_area", "edges", "clusters")}
     obs_m = {k: [] for k in sim_m}
     last = history.frames[-1].year if max_year is None else min(max_year, history.frames[-1].year)
@@ -40,12 +52,26 @@ def score_history(history, grid0, max_year: float | None = None) -> dict:
         for k in sim_m:
             sim_m[k].append(METRICS.get(k)(sim))
             obs_m[k].append(METRICS.get(k)(o))
+        if "density" in obs and "density" in frame.layers and d0 is not None:
+            both = (o > 0) & (sim > 0)
+            e = cmp.density_errors(obs["density"], frame.layers["density"], both, reference=d0)
+            dens["density_mae"].append(e["mae"])
+            dens["density_skill"].append(e["skill"])
+            dens["density_bias"].append(e["bias"])
     res = {k: float(np.mean(v)) for k, v in out.items()}
+    res.update({k: float(np.mean(v)) for k, v in dens.items() if v})
     for k in sim_m:
         res[f"r2_{k}"] = cmp.r_squared(sim_m[k], obs_m[k])
     # Composite: *change* placement (figure of merit) × area accuracy. FoM ignores
     # persistent cells, which otherwise dominate agreement for an established city.
-    res["score"] = res["fom"] * max(0.0, 1.0 - res["area_err"])
+    if objective == "fom_area":
+        res["score"] = res["fom"] * max(0.0, 1.0 - res["area_err"])
+    elif objective == "density":
+        if "density_skill" not in res:
+            raise ValueError("objective 'density' needs observed density snapshots")
+        res["score"] = res["density_skill"]
+    else:
+        raise ValueError(f"Unknown objective '{objective}'; use one of {OBJECTIVES}")
     return res
 
 
@@ -65,7 +91,7 @@ def set_path(spec: dict, path: str, value) -> None:
 def calibrate(make_sim: Callable[[dict, int], "Simulation"], grid0, base_spec: dict,
               space: dict[str, tuple[float, float]], samples: int = 30, runs: int = 2,
               seed: int = 0, integer: bool = False, progress: bool = True,
-              until: float | None = None) -> list[dict]:
+              until: float | None = None, objective: str = "fom_area") -> list[dict]:
     """Random search. ``make_sim(spec, seed)`` builds a fresh simulation from a
     full scenario spec.
 
@@ -90,9 +116,10 @@ def calibrate(make_sim: Callable[[dict, int], "Simulation"], grid0, base_spec: d
         for r in range(runs):
             sim = make_sim(spec, seed * 1000 + i * runs + r)
             sim.record.every = 1
-            sim.record.layers = ["urban"]
+            sim.record.layers = ["urban", "density"]
             sim.record.metrics = []
-            scores.append(score_history(sim.run(until=until), grid0, max_year=until))
+            scores.append(score_history(sim.run(until=until), grid0, max_year=until,
+                                        objective=objective))
         agg = {k: float(np.nanmean([s[k] for s in scores])) for k in scores[0]
                if isinstance(scores[0][k], (int, float))}
         trials.append({"params": params, **agg})

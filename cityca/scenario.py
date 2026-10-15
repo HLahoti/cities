@@ -9,6 +9,7 @@
       "anchors": [{"name": "Airport", "kind": "airport", "position": [160, 150],
                    "announce_year": 1995, "open_year": 2002}],
       "events": [{"type": "add_road", "year": 2000, "coords": [[...]], "value": 3}],
+      "processes": [{"type": "densify", "rate": 0.15}],
       "record": {"every": 1},
       "monte_carlo": {"runs": 10},
       "output": {"root": "../runs", "animation": "growth.mp4", "fps": 8}
@@ -28,7 +29,7 @@ from pathlib import Path
 import numpy as np
 
 from .anchors.field import AnchorField
-from .engine import MODELS, Simulation, build_events, run_ensemble
+from .engine import MODELS, Simulation, build_events, build_processes, run_ensemble
 from .engine.calibrate import score_history
 from .grid.io import load_city, save_city
 from .naming import run_dir
@@ -73,6 +74,7 @@ def build_simulation(spec: dict, grid, seed: int | None = None, model_spec: dict
         dt=spec.get("dt", 1.0),
         seed=spec.get("seed", 0) if seed is None else seed,
         record=copy.deepcopy(spec.get("record")),
+        processes=build_processes(copy.deepcopy(spec.get("processes", []))),
     )
 
 
@@ -113,6 +115,8 @@ def run_scenario(path_or_dict, out_dir: str | Path | None = None, animation: boo
         print(f"[{spec.get('name')}] {type(sim.model).__name__} on {grid0.name}, "
               f"from {grid0.year:g}")
     hist = sim.run(**_run_kwargs(spec), progress=progress)
+    if "density" not in grid0.layers and "density" in hist.frames[0].layers:
+        grid0["density"] = hist.frames[0].layers["density"]  # initialised by a process
     hist.save(out / "history")
     save_city(sim.grid, out / "final.city.json")
 
@@ -158,8 +162,18 @@ def run_scenario(path_or_dict, out_dir: str | Path | None = None, animation: boo
                                   hist.frame_at(y_last).layers["urban"],
                                   title=f"Simulated vs observed change, {grid0.year:g}–{y_last:g}")
             save(fig, "validation_map.png")
-        keys = [k for k in ("urban_area", "new", "clusters", "fractal_dimension", "edges",
-                            "radius_of_gyration") if np.isfinite(hist.series(k)).any()]
+        dens_years = [y for y in obs_years if "density" in grid0.observed[y]
+                      and "density" in hist.frame_at(y).layers]
+        if dens_years:
+            y_d = max(dens_years)
+            fig, axes = plt.subplots(1, 3, figsize=(20, 6.6))
+            viz.render_density_comparison(axes, grid0, grid0.observed[y_d]["density"],
+                                          hist.frame_at(y_d).layers["density"], year=y_d)
+            fig.tight_layout()
+            save(fig, "density_vs_observed.png")
+        keys = [k for k in ("urban_area", "new", "built_surface", "mean_urban_density", "clusters",
+                            "fractal_dimension", "edges", "radius_of_gyration")
+                if np.isfinite(hist.series(k)).any()][:6]
         save(viz.plot_series(hist, keys=keys, observed=observed), "metrics.png")
         if "edge" in hist.records[-1]:
             save(viz.plot_growth_types(hist), "growth_types.png")
@@ -189,6 +203,12 @@ def run_scenario(path_or_dict, out_dir: str | Path | None = None, animation: boo
                                    title=f"P(urban) by {ens.years[-1]:g} — {n_runs} runs")
             save(fig, "probability.png")
             save(viz.plot_ensemble(ens, labels=spec.get("name")), "ensemble.png")
+            if ens.density is not None:
+                fig, ax = plt.subplots(figsize=(7.5, 7))
+                viz.render_map(ax, grid0, urban=ens.final >= 0.5, density=ens.density[-1],
+                               year=ens.years[-1], show_legend=True,
+                               title=f"Expected built-up density {ens.years[-1]:g} — {n_runs} runs")
+                save(fig, "density_expected.png")
 
     (out / "summary.json").write_text(json.dumps(summary, indent=2, default=float))
     if progress:
@@ -200,7 +220,7 @@ def run_scenario_ensemble(spec, runs: int, progress: bool = False):
     spec = load_scenario(spec)
     grid0 = load_scenario_city(spec)
     base = spec.get("seed", 0) * 10007
-    rec = {"every": spec.get("record", {}).get("every", 1), "layers": ["urban"],
+    rec = {"every": spec.get("record", {}).get("every", 1), "layers": ["urban", "density"],
            "metrics": ["urban_area", "clusters"]}
     spec_mc = {**spec, "record": rec}
     return run_ensemble(lambda s: build_simulation(spec_mc, grid0.copy(), seed=s),
