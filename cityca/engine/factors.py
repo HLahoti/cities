@@ -243,6 +243,30 @@ class LayerFactor(Factor):
         return _floor(f, self.floor)
 
 
+@FACTORS.register("learned")
+class LearnedFactor(Factor):
+    """Transition probability from a trained ``cityca.learn.LearnedModel``.
+
+    ``model_file`` is a saved model (relative paths in scenarios are resolved
+    against the scenario file). ``power`` sharpens (>1) or flattens (<1) the
+    surface before allocation.
+    """
+    name = "learned"
+    _cache: dict = {}
+
+    def __init__(self, model_file: str, power: float = 1.0, **kw):
+        super().__init__(**kw)
+        self.model_file, self.power = str(model_file), power
+        if self.model_file not in self._cache:
+            from ..learn.learners import LearnedModel
+            self._cache[self.model_file] = LearnedModel.load(self.model_file)
+        self.model = self._cache[self.model_file]
+
+    def __call__(self, grid, ctx):
+        p = self.model.predict_grid(grid)
+        return p ** self.power if self.power != 1 else p
+
+
 def build_factors(specs) -> list[Factor]:
     return [FACTORS.build(s) for s in (specs or [])]
 

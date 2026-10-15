@@ -105,3 +105,12 @@ class NeighborhoodModel(GrowthModel):
 
     def params(self) -> dict:
         return {"p": self.p, "min_neighbors": self.min_neighbors, "max_neighbors": self.max_neighbors}
+
+
+@MODELS.register("none")
+class NullModel(GrowthModel):
+    """No growth. Used to replay events/anchors (e.g. to rebuild observed states)."""
+    name = "none"
+
+    def step(self, grid, ctx: StepContext) -> dict:
+        return {"new": 0}

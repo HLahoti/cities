@@ -102,7 +102,9 @@ def road_nearest(grid, min_class: int = 1):
 
 @derived("rail_distance", ["rail"])
 def rail_distance(grid):
-    """Euclidean distance (cells) to the nearest rail line."""
+    """Euclidean distance (cells) to the nearest rail line (inf if the city has none)."""
+    if "rail" not in grid.layers:
+        return np.full(grid.shape, np.inf, dtype=np.float32)
     return _edt(grid["rail"] > 0).astype(np.float32)
 
 

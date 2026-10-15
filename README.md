@@ -13,6 +13,9 @@ python3 -m cityca compare examples/scenarios/baseline_2030.json \
                           examples/scenarios/airport_2030.json --runs 20
 python3 -m cityca calibrate examples/scenarios/replicate_1950_1990.json \
     --space diffusion=1:20 breed=1:40 spread=2:30 slope_resistance=10:90 road_gravity=5:80
+python3 -m cityca learn examples/bangalore/scenarios/calibrated_v3_density.json \
+    --until 2015 --learner logistic                      # learn growth rules from history
+python3 -m cityca validate examples/bangalore/validation_v4.json   # rolling-origin comparison
 python3 -m cityca list                                   # every pluggable component
 python3 -m pytest
 ```
@@ -25,7 +28,8 @@ scenario's `name`. For the other commands it is `compare`, `calibrate` or
 `"output": {"root": ...}`), or `--out DIR` to give an exact path and skip the
 automatic naming.
 
-Dependencies: numpy, scipy, matplotlib, Pillow (and ffmpeg for `.mp4`; use
+Dependencies: numpy, scipy, matplotlib, Pillow; scikit-learn for `cityca.learn`
+(`pip install -e .[learn]`) (and ffmpeg for `.mp4`; use
 `"animation": "growth.gif"` without it).
 
 ## Architecture
@@ -39,6 +43,8 @@ by `type`, so trying a different combination means editing JSON, not code.
 | `cityca/anchors` | Anchors (mass, decay kernel, announce→open→mature timeline) and the potential field Φ | `ANCHOR_KINDS`, `DECAY` (in `kernels.py`) |
 | `cityca/engine` | Growth models, factors, demand laws, allocators, events, the simulation loop, Monte Carlo, calibration | `MODELS`, `FACTORS`, `DEMANDS`, `ALLOCATORS`, `EVENTS` |
 | `cityca/metrics` | Urban-form metrics (area, edges, clusters, fractal dimension, …), map comparison (Lee–Sallee, kappa, figure of merit), radial density profiles | `METRICS` |
+| `cityca/learn` | Learned transition rules: feature sets from any layers, observed-state replay, transition datasets, logistic / gradient-boosted learners, permutation importance | `LEARNERS` |
+| `cityca/validate.py` | Rolling-origin validation: fit each method on data up to an origin year, forecast from the observed state, score by horizon | – |
 | `cityca/viz` | Composite maps, layer panels, Φ fields, probability maps, charts, MP4/GIF animation | – |
 | `cityca/scenario.py` | Wires a city, a model, anchors and events into one run and writes every output | – |
 
@@ -124,6 +130,52 @@ Calibrate it with `--objective density`.
 **Events** fire at a given year: `add_road`, `add_anchor`, `remove_anchor`,
 `burn` (any geometry into any layer, e.g. a greenbelt), `urbanize`, and
 `set_param` (a policy or economic shock).
+
+### Learning growth rules from data (`cityca/learn`)
+
+Instead of hand-picking factors and their weights, `cityca learn` trains a
+classifier to predict which cells become urban.
+- **Inputs:** a `FeatureSet` that turns any base or derived layer into a
+  predictor. Transforms and smoothing are optional.
+- **Examples:** transitions between observed snapshots. The training states
+  are rebuilt by `observed_state`, which replays events and anchors up to that
+  year and then takes urban and density from the observations.
+- **Output:** a held-out score and a ranked list of which inputs matter
+  (permutation importance).
+
+The saved model plugs into any simulation as a factor:
+
+```json
+{"type": "potential",
+ "factors": [{"type": "learned", "model_file": "../models/logistic_2015/model.joblib"}],
+ "demand": {"type": "constant", "cells": 1030},
+ "allocator": {"type": "roulette", "gamma": 2}}
+```
+
+Set `"start_from_observed": 2015` in a scenario to forecast from the real 2015
+map instead of the city file's start year.
+
+### Calibration and validation
+
+* `cityca calibrate` defaults to `--search cem`, an iterative cross-entropy
+  search: each round re-fits a Gaussian to the best trials so far.
+  `--search random` does uniform draws instead.
+  - **Parallel:** trials are evaluated across worker processes (`--workers`)
+    and average `--runs` stochastic runs each.
+  - **Parameter sets:** the top `--elites` combinations are saved as
+    `parameter_sets`. When a scenario carries `parameter_sets`, its Monte Carlo
+    runs cycle through them, so forecasts include parameter uncertainty and not
+    just chance.
+* `cityca validate config.json` runs a **rolling-origin** comparison. For
+  each origin year, every method:
+  1. is fitted using only data up to that year;
+  2. forecasts from the observed state at that year;
+  3. is scored at every later observed year.
+
+  The results show how accuracy holds up with forecast horizon
+  (`validation.png`, `validation.json`). Method types are `potential`,
+  `learned`, `calibrated` (re-calibrated at each origin with CEM) and `fixed`.
+  See `cityca/validate.py`.
 
 ### Phase 3 — anchors and the potential field (`cityca/anchors`)
 
@@ -216,11 +268,13 @@ effect on growth around it is strongly overestimated.
 * **Co-evolving networks.** Roads are static except for scheduled events and
   anchor access roads. Growing the network with the city (WBE-style supply
   networks) is the natural next step.
-* **Calibration.** Calibration is a random search over any scenario path
-  (`model.spread`, `anchors.0.mass`, `field.kind_weights.station`). Fit on
-  early years and hold out later ones with `--until`. The score is figure of
-  merit on change × (1 − area error). A coarse→fine search, as SLEUTH does, or
-  Bayesian optimisation should replace the random search: with 10+ parameters,
-  60 trials sample the space thinly.
+* **Calibration.** Calibration uses CEM or random search over any scenario
+  path, with parallel evaluation and kept parameter sets. Bayesian
+  optimisation (e.g. Optuna) could be added as another search strategy.
+* **Learning.** Learning only predicts *where* cells become urban. Two
+  extensions would help:
+  - learning *how much* densification happens per cell, since the current
+    densify process gets the average right but not the location;
+  - learning the amount of growth, instead of using a trend.
 * **Speed.** Travel-distance fields cost one Dijkstra run per anchor. They are
   cached process-wide by road network, so Monte Carlo runs reuse them.

@@ -1,0 +1,25 @@
+{
+ "description": "Rolling-origin validation: learned transition models vs re-calibrated SLEUTH vs a proximity baseline. Each method uses only data up to the origin year (except sleuth-fixed, whose parameters were fitted on 2006-2015 and so leak for earlier origins).",
+ "scenario": "scenarios/calibrated_v3_density.json",
+ "origins": [2006, 2008, 2010, 2012, 2015],
+ "runs": 12,
+ "methods": {
+  "proximity": {"type": "potential",
+                "factors": [{"type": "neighborhood", "radius": 2, "floor": 0.02},
+                            {"type": "excluded"}, {"type": "noise", "alpha": 0.5}]},
+  "learned-logistic": {"type": "learned", "learner": "logistic", "params": {"C": 1.0}},
+  "learned-gbm": {"type": "learned", "learner": "gbm",
+                  "params": {"max_iter": 200, "learning_rate": 0.05, "max_leaf_nodes": 15,
+                             "min_samples_leaf": 200, "l2_regularization": 2.0}},
+  "sleuth-cem": {"type": "calibrated", "search": "cem", "iterations": 5, "population": 24,
+                 "runs": 3, "elites": 5,
+                 "space": {"diffusion": [1, 25], "breed": [1, 50], "spread": [2, 50],
+                           "slope_resistance": [5, 80], "road_gravity": [5, 90],
+                           "anchor_seeding": [0, 60], "model.modifiers.0.gain": [0, 5],
+                           "anchors.0.mass": [0, 1.5], "anchors.0.ramp_years": [8, 30],
+                           "model.edge_modifiers.0.ref": [0.05, 0.6],
+                           "field.kind_weights.station": [0, 3],
+                           "field.kind_weights.tech_park": [0, 3]}},
+  "sleuth-fixed": {"type": "fixed"}
+ }
+}

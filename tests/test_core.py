@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 import pytest
 
@@ -237,3 +239,86 @@ def test_density_heatmap_render():
     render_map(ax, g)  # auto -> density mode with colour bar
     assert len(fig.axes) == 2
     plt.close(fig)
+
+
+# --- learning, calibration search, rolling validation ------------------------------------
+def city_with_history(tmp_path=None):
+    """Small city whose 'observed' growth is ring-by-ring dilation along the road."""
+    from scipy import ndimage
+    g = small_city()
+    u = g["urban"] > 0
+    land = (g["water"] == 0) & (g["excluded"] < 1)
+    road = g["roads"] > 0
+    for k, y in enumerate((2002.0, 2004.0, 2006.0, 2008.0)):
+        u = (ndimage.binary_dilation(u, iterations=2) | (ndimage.binary_dilation(road, iterations=1)
+             & ndimage.binary_dilation(u, iterations=6))) & land
+        g.observed[y] = {"urban": u.astype(np.uint8),
+                         "density": np.where(u, 0.5 + 0.05 * k, 0.0).astype(np.float32)}
+    g["density"] = np.where(g["urban"] > 0, 0.5, 0.0)
+    if tmp_path is not None:
+        save_city(g, tmp_path / "h.city.json")
+    return g
+
+
+def test_observed_state_replays_events():
+    from cityca.learn import observed_state
+    g = city_with_history()
+    spec = {"events": [{"type": "add_road", "year": 2003, "coords": [[30, 0], [30, 59]], "value": 2}]}
+    s = observed_state(spec, g, 2004.0)
+    assert s.year == 2004 and s["roads"][5, 30] == 2
+    assert (s["urban"] == g.observed[2004.0]["urban"]).all()
+    assert np.isclose(s["density"], g.observed[2004.0]["density"]).all()
+
+
+def test_learned_model_and_factor(tmp_path):
+    from cityca.learn import train_from_scenario
+    g = city_with_history()
+    model, rep = train_from_scenario({}, g, 2006, learner="logistic")
+    assert rep["holdout"]["roc_auc"] > 0.8  # dilation is learnable from neighbourhood features
+    assert rep["importance"][0]["auc_drop"] > 0
+    path = model.save(tmp_path / "m.joblib")
+    sim = Simulation(g.copy(), MODELS.build({
+        "type": "potential", "factors": [{"type": "learned", "model_file": str(path)}],
+        "demand": {"type": "constant", "cells": 15}, "allocator": "top_n"}), seed=0)
+    h = sim.run(steps=2)
+    assert [r["new"] for r in h.records[1:]] == [15, 15]
+
+
+def test_cem_search_and_elites():
+    from cityca.engine.calibrate import SerialEvaluator, calibrate, elites
+    from cityca.scenario import build_simulation
+    g = city_with_history()
+    spec = {"model": {"type": "neighborhood", "p": 0.3}}
+    ev = SerialEvaluator(lambda sc, s: build_simulation(sc, g.copy(), seed=s), g)
+    trials = calibrate(ev, g, spec, {"p": (0.0, 1.0)}, runs=1, search="cem", iterations=3,
+                       population=5, progress=False, until=2004)
+    assert len(trials) == 15 and {t["round"] for t in trials} == {0, 1, 2}
+    assert trials[0]["score"] >= np.median([t["score"] for t in trials])
+    assert len(elites(trials, 3)) == 3 and "model.p" in elites(trials, 1)[0]
+
+
+def test_ensemble_parameter_sets_and_start_grid():
+    from cityca.scenario import run_scenario_ensemble
+    g = city_with_history()
+    spec = {"name": "x", "steps": 3, "seed": 1, "model": {"type": "neighborhood", "p": 0.5},
+            "parameter_sets": [{"model.p": 0.0}, {"model.p": 1.0}]}
+    ens = run_scenario_ensemble(spec, runs=2, start_grid=g, until=g.year + 3)
+    start = (g["urban"] > 0).sum()
+    # one member never grows (p=0), the other always does: mean area is in between
+    assert start < ens.probability[-1].sum() < ens.probability[-1].size
+
+
+def test_rolling_origin_smoke(tmp_path):
+    from cityca.validate import rolling_origin
+    city_with_history(tmp_path)
+    (tmp_path / "s.json").write_text(json.dumps({"name": "s", "city": "h.city.json",
+                                                 "model": {"type": "none"}}))
+    cfg = {"scenario_path": str(tmp_path / "s.json"), "origins": [2004], "runs": 2,
+           "methods": {"proximity": {"type": "potential", "factors": [
+                           {"type": "neighborhood", "radius": 2, "floor": 0.02}]},
+                       "learned": {"type": "learned", "learner": "logistic"}}}
+    rep = rolling_origin(cfg, tmp_path / "out", workers=1, progress=False)
+    rows = rep["results"]
+    assert {r["method"] for r in rows} == {"proximity", "learned"}
+    assert {r["horizon"] for r in rows} == {2.0, 4.0}
+    assert all(0 <= r["fom"] <= 1 for r in rows)

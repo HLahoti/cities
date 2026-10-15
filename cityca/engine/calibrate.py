@@ -88,45 +88,150 @@ def set_path(spec: dict, path: str, value) -> None:
         obj[last] = value
 
 
-def calibrate(make_sim: Callable[[dict, int], "Simulation"], grid0, base_spec: dict,
-              space: dict[str, tuple[float, float]], samples: int = 30, runs: int = 2,
-              seed: int = 0, integer: bool = False, progress: bool = True,
-              until: float | None = None, objective: str = "fom_area") -> list[dict]:
-    """Random search. ``make_sim(spec, seed)`` builds a fresh simulation from a
-    full scenario spec.
+def apply_params(spec: dict, params: dict) -> dict:
+    """Copy of ``spec`` with dotted-path parameters set."""
+    spec = copy.deepcopy(spec)
+    for k, v in params.items():
+        set_path(spec, k, v)
+    return spec
 
-    ``space`` maps dotted paths inside ``base_spec`` to (low, high) ranges, e.g.
-    ``model.spread`` or ``anchors.0.mass``; a bare name whose first part is not
-    a top-level key is taken as a model parameter (``spread`` → ``model.spread``).
-    ``until`` limits calibration to observed years ≤ until (hold the rest out).
-    Returns trials sorted best-first: ``{"params": {...}, "score": ..., ...}``.
+
+# --- evaluators ----------------------------------------------------------------------------
+class SerialEvaluator:
+    """Runs jobs in-process. ``make_sim(spec, seed)`` builds a fresh simulation."""
+
+    def __init__(self, make_sim: Callable[[dict, int], "Simulation"], grid0):
+        self.make_sim, self.grid0 = make_sim, grid0
+
+    def __call__(self, jobs, until, objective):
+        out = []
+        for spec, seed in jobs:
+            sim = self.make_sim(spec, seed)
+            sim.record.every, sim.record.layers, sim.record.metrics = 1, ["urban", "density"], []
+            out.append(score_history(sim.run(until=until), self.grid0, max_year=until,
+                                     objective=objective))
+        return out
+
+    def close(self):
+        pass
+
+
+_WORKER: dict = {}
+
+
+def _init_worker(city_path: str):
+    from ..grid.io import load_city
+    _WORKER["base"] = load_city(city_path)
+
+
+def _eval_job(spec, seed, until, objective):
+    from ..scenario import build_simulation, load_scenario_city
+    grid0 = load_scenario_city(spec, _WORKER["base"])
+    sim = build_simulation(spec, grid0.copy(), seed=seed)
+    sim.record.every, sim.record.layers, sim.record.metrics = 1, ["urban", "density"], []
+    return score_history(sim.run(until=until), grid0, max_year=until, objective=objective)
+
+
+class ParallelEvaluator:
+    """Runs jobs across worker processes; each worker loads the city once."""
+
+    def __init__(self, city_path, workers: int | None = None):
+        import os
+        from concurrent.futures import ProcessPoolExecutor
+        self.workers = workers or max(1, (os.cpu_count() or 2) - 1)
+        self.pool = ProcessPoolExecutor(self.workers, initializer=_init_worker,
+                                        initargs=(str(city_path),))
+
+    def __call__(self, jobs, until, objective):
+        futs = [self.pool.submit(_eval_job, spec, seed, until, objective) for spec, seed in jobs]
+        return [f.result() for f in futs]
+
+    def close(self):
+        self.pool.shutdown()
+
+
+# --- search strategies -------------------------------------------------------------------------
+def _clip(params, space):
+    return {k: float(np.clip(v, *space[k])) for k, v in params.items()}
+
+
+def calibrate(evaluator, grid0, base_spec: dict, space: dict[str, tuple[float, float]],
+              samples: int = 30, runs: int = 2, seed: int = 0, integer: bool = False,
+              progress: bool = True, until: float | None = None, objective: str = "fom_area",
+              search: str = "random", iterations: int = 5, population: int | None = None,
+              elite_frac: float = 0.25, smoothing: float = 0.7) -> list[dict]:
+    """Search parameters to maximise ``score_history`` against observed years.
+
+    ``evaluator`` is a ``SerialEvaluator``/``ParallelEvaluator`` (or, for
+    backwards compatibility, a ``make_sim(spec, seed)`` callable). ``space``
+    maps dotted paths in ``base_spec`` to (low, high); a bare name whose first
+    part is not a top-level key means a model parameter (``spread`` →
+    ``model.spread``). ``until`` limits scoring to observed years ≤ until.
+
+    ``search``:
+    * ``random`` — ``samples`` uniform draws;
+    * ``cem`` — cross-entropy method: ``iterations`` rounds of ``population``
+      draws from a Gaussian (truncated to the bounds) re-fitted each round to
+      the top ``elite_frac`` of all trials so far, with ``smoothing``.
+
+    Every trial averages ``runs`` stochastic runs. Returns trials best-first:
+    ``{"params": {...}, "score": ..., "round": r, ...}``.
     """
+    if not hasattr(evaluator, "close"):
+        evaluator = SerialEvaluator(evaluator, grid0)
     rng = np.random.default_rng(seed)
     until = max(grid0.observed) if until is None else until
-    space = {(k if k.split(".")[0] in base_spec else f"model.{k}"): v for k, v in space.items()}
-    trials = []
-    for i in range(samples):
-        params = {k: float(rng.uniform(lo, hi)) for k, (lo, hi) in space.items()}
-        if integer:
-            params = {k: round(v) for k, v in params.items()}
-        spec = copy.deepcopy(base_spec)
-        for k, v in params.items():
-            set_path(spec, k, v)
-        scores = []
-        for r in range(runs):
-            sim = make_sim(spec, seed * 1000 + i * runs + r)
-            sim.record.every = 1
-            sim.record.layers = ["urban", "density"]
-            sim.record.metrics = []
-            scores.append(score_history(sim.run(until=until), grid0, max_year=until,
-                                        objective=objective))
-        agg = {k: float(np.nanmean([s[k] for s in scores])) for k in scores[0]
-               if isinstance(scores[0][k], (int, float))}
-        trials.append({"params": params, **agg})
+    space = {(k if k.split(".")[0] in base_spec else f"model.{k}"): tuple(v) for k, v in space.items()}
+    keys = list(space)
+    lo = np.array([space[k][0] for k in keys])
+    hi = np.array([space[k][1] for k in keys])
+    trials: list[dict] = []
+
+    def run_round(param_list, rnd):
+        jobs, meta = [], []
+        for i, params in enumerate(param_list):
+            if integer:
+                params = {k: round(v) for k, v in params.items()}
+            spec = apply_params(base_spec, params)
+            for r in range(runs):
+                jobs.append((spec, int(seed * 100_000 + len(trials) * 100 + i * runs + r)))
+                meta.append(i)
+        results = evaluator(jobs, until, objective)
+        for i, params in enumerate(param_list):
+            scores = [res for res, m in zip(results, meta) if m == i]
+            agg = {k: float(np.nanmean([s[k] for s in scores])) for k in scores[0]
+                   if isinstance(scores[0][k], (int, float))}
+            agg["score_sd"] = float(np.nanstd([s["score"] for s in scores]))
+            trials.append({"params": params, "round": rnd, **agg})
         if progress:
             best = max(t["score"] for t in trials)
-            print(f"\r  trial {i + 1}/{samples}  score {agg['score']:.3f}  best {best:.3f}",
-                  end="", flush=True)
+            print(f"\r  round {rnd + 1}: {len(trials)} trials, best {best:.4f}", end="", flush=True)
+
+    if search == "random":
+        draws = rng.uniform(lo, hi, size=(samples, len(keys)))
+        run_round([dict(zip(keys, map(float, d))) for d in draws], 0)
+    elif search == "cem":
+        pop = population or max(8, 2 * len(keys))
+        mu, sd = (lo + hi) / 2, (hi - lo) / 2
+        floor = 0.02 * (hi - lo)
+        for rnd in range(iterations):
+            if rnd == 0:
+                draws = rng.uniform(lo, hi, size=(pop, len(keys)))
+            else:
+                draws = np.clip(rng.normal(mu, sd, size=(pop, len(keys))), lo, hi)
+            run_round([dict(zip(keys, map(float, d))) for d in draws], rnd)
+            ranked = sorted(trials, key=lambda t: -t["score"])
+            elite = ranked[:max(2, int(elite_frac * len(ranked)))]
+            E = np.array([[t["params"][k] for k in keys] for t in elite])
+            mu = smoothing * E.mean(0) + (1 - smoothing) * mu
+            sd = np.maximum(smoothing * E.std(0) + (1 - smoothing) * sd, floor)
+    else:
+        raise ValueError(f"Unknown search '{search}' (random | cem)")
     if progress:
         print()
     return sorted(trials, key=lambda t: -t["score"])
+
+
+def elites(trials: list[dict], k: int = 5) -> list[dict]:
+    """Top-k parameter sets — a cheap stand-in for a posterior over parameters."""
+    return [t["params"] for t in trials[:k]]

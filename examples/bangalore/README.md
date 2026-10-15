@@ -191,3 +191,58 @@ The densification parameters were calibrated on observed density for
   (the simulated fringe is more solid than reality). The south and west
   fringe come out not dense enough, as the difference map in the assessment
   output shows.
+
+## v4: learned growth rules and rolling-origin validation (2026-10-15)
+
+**Learned growth rules.** The transition surface comes from a classifier
+trained on observed transitions (`cityca learn`), not from hand-picked
+factors.
+
+**Validation.** `validation_v4.json` runs a rolling-origin test:
+- **Origins:** 2006, 2008, 2010, 2012 and 2015.
+- **Procedure:** each method is fitted on data up to the origin, forecasts from
+  the observed map at that origin, and is scored at every later observed year
+  (12 runs per forecast, 25 forecasts per method).
+- **Matching:** the proximity baseline and both learned models use the same
+  trend demand, so they differ only in *where* they place growth.
+
+| Method | Mean FoM (all) | 2-year horizon | 9–13-year horizon | FoM (single-sensor years only) |
+|---|---|---|---|---|
+| **learned-logistic** | **0.308** | 0.271 | 0.343 | **0.325** |
+| **learned-gbm** | **0.310** | 0.274 | 0.337 | **0.328** |
+| sleuth-cem (re-calibrated at each origin, 5 elite parameter sets) | 0.201 | 0.135 | 0.272 | 0.186 |
+| sleuth-fixed (v3 parameters, fitted on 2006–15, so it has seen the future) | 0.197 | 0.093 | 0.285 | 0.179 |
+| proximity (grow next to existing urban land) | 0.182 | 0.085 | 0.271 | 0.171 |
+
+* **The learned models place new growth about 55 % better than calibrated
+  SLEUTH, and about twice as well at short horizons.** Logistic regression
+  matches gradient boosting, so the signal is mostly simple.
+* **The new search works.** Re-calibrating SLEUTH honestly at each origin with
+  CEM matches the earlier calibration that had seen the future.
+* **The advantage disappears for 2015→2019.** All methods score FoM 0.12–0.14
+  there, and the learned model's held-out ROC AUC falls from about 0.98 to
+  0.78. The 2019 sensor marks about 4× more cells as newly urban, so this
+  interval measures something different.
+* **Short-horizon density.** Over 2–3 years the densify process is slightly
+  worse than "no change". It gets average infill right (+0.034 vs +0.032 over
+  2012→2015) but spreads it evenly, while real infill is lumpy. Over longer
+  horizons its skill rises to +0.2 to +0.4.
+
+**What predicts new urban land.** Permutation importance from
+`models/logistic_2015/importance.png`, held-out 2015→2019:
+
+| Rank | Input | Drop in held-out AUC when shuffled |
+|---|---|---|
+| 1 | Urban share within about 600 m | 0.110 |
+| 2 | The cell's own existing built share | 0.063 |
+| 3 | Distance to urban land | 0.062 |
+| 4 | Urban share within about 1.8 km | 0.050 |
+| – | Distance to the CBD | 0.012 |
+| – | Anchors, roads, protected land, terrain | ≤ 0.004 each |
+
+Bangalore grew by filling in and thickening around existing settlement.
+Infrastructure and anchors add little once that is known.
+
+**Forecast.** `scenarios/v4_learned_forecast.json` starts from the observed
+2015 map and runs to 2026 with the logistic model, demand of 1,030 cells a
+year (the 2004–2015 trend) and densification.

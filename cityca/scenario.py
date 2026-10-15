@@ -30,7 +30,7 @@ import numpy as np
 
 from .anchors.field import AnchorField
 from .engine import MODELS, Simulation, build_events, build_processes, run_ensemble
-from .engine.calibrate import score_history
+from .engine.calibrate import apply_params, score_history
 from .grid.io import load_city, save_city
 from .naming import run_dir
 
@@ -56,25 +56,43 @@ def load_scenario_city(spec: dict, base_city=None):
     """The scenario's start grid: its city plus scenario anchors.
 
     Pass an already-loaded ``base_city`` to skip reading the file (it is copied).
+    With ``"start_from_observed": <year>`` the grid is the *observed* state at
+    that year (events and anchors replayed, urban/density from observations),
+    so forecasts can start from the latest real map.
     """
     grid = base_city.copy() if base_city is not None else load_city(_resolve(spec, spec["city"]))
     for a in spec.get("anchors", []):
         grid.add_anchor(dict(a))
     if "start_year" in spec:
         grid.set_year(spec["start_year"])
+    if spec.get("start_from_observed") is not None:
+        from .learn.dataset import observed_state
+        state = observed_state(spec, grid, float(spec["start_from_observed"]))
+        state.observed = grid.observed  # keep history for validation of later years
+        grid = state
     return grid
+
+
+def _resolve_files(obj, spec):
+    """Resolve every ``*_file`` value in a (nested) spec against the scenario dir."""
+    if isinstance(obj, dict):
+        return {k: (str(_resolve(spec, v)) if k.endswith("_file") and isinstance(v, str)
+                    else _resolve_files(v, spec)) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_resolve_files(v, spec) for v in obj]
+    return obj
 
 
 def build_simulation(spec: dict, grid, seed: int | None = None, model_spec: dict | None = None) -> Simulation:
     return Simulation(
         grid,
-        MODELS.build(copy.deepcopy(model_spec or spec["model"])),
+        MODELS.build(_resolve_files(copy.deepcopy(model_spec or spec["model"]), spec)),
         field=AnchorField(**spec.get("field", {})),
         events=build_events(copy.deepcopy(spec.get("events", []))),
         dt=spec.get("dt", 1.0),
         seed=spec.get("seed", 0) if seed is None else seed,
         record=copy.deepcopy(spec.get("record")),
-        processes=build_processes(copy.deepcopy(spec.get("processes", []))),
+        processes=build_processes(_resolve_files(copy.deepcopy(spec.get("processes", [])), spec)),
     )
 
 
@@ -88,6 +106,12 @@ def output_dir(spec: dict, city_name: str, run_type: str, out_dir=None, root=Non
         cfg_root = spec.get("output", {}).get("root")
         root = _resolve(spec, cfg_root) if cfg_root else Path("runs")
     return run_dir(city_name, run_type, root)
+
+
+def default_workers(spec: dict) -> int:
+    """Monte Carlo worker processes: ``monte_carlo.workers`` or all cores but one."""
+    import os
+    return int(spec.get("monte_carlo", {}).get("workers", max(1, (os.cpu_count() or 2) - 1)))
 
 
 def _run_kwargs(spec):
@@ -192,7 +216,7 @@ def run_scenario(path_or_dict, out_dir: str | Path | None = None, animation: boo
 
     n_runs = runs if runs is not None else spec.get("monte_carlo", {}).get("runs", 0)
     if n_runs and n_runs > 1:
-        ens = run_scenario_ensemble(spec, n_runs, progress=progress)
+        ens = run_scenario_ensemble(spec, n_runs, progress=progress, workers=default_workers(spec))
         ens.save(out / "ensemble")
         summary["monte_carlo"] = {"runs": n_runs,
                                   "expected_urban_end": float(ens.final.sum()),
@@ -216,15 +240,73 @@ def run_scenario(path_or_dict, out_dir: str | Path | None = None, animation: boo
     return {"summary": summary, "history": hist, "grid": sim.grid, "grid0": grid0, "out": out}
 
 
-def run_scenario_ensemble(spec, runs: int, progress: bool = False):
+def run_scenario_ensemble(spec, runs: int, progress: bool = False, workers: int | None = None,
+                          start_grid=None, until: float | None = None):
+    """Monte Carlo ensemble of a scenario.
+
+    * ``start_grid`` — start from this grid instead of the scenario's city
+      (e.g. an observed state for a forecast); events at or before its year
+      are dropped since they have already happened.
+    * ``spec["parameter_sets"]`` — list of {dotted.path: value}; run i uses set
+      i mod k, so the ensemble spans parameter uncertainty as well as chance.
+    * ``workers`` > 1 runs members in parallel processes.
+    """
     spec = load_scenario(spec)
-    grid0 = load_scenario_city(spec)
-    base = spec.get("seed", 0) * 10007
+    grid0 = start_grid if start_grid is not None else load_scenario_city(spec)
     rec = {"every": spec.get("record", {}).get("every", 1), "layers": ["urban", "density"],
            "metrics": ["urban_area", "clusters"]}
-    spec_mc = {**spec, "record": rec}
-    return run_ensemble(lambda s: build_simulation(spec_mc, grid0.copy(), seed=s),
-                        runs=runs, base_seed=base, progress=progress, **_run_kwargs(spec))
+    base = {**spec, "record": rec}
+    if start_grid is not None:
+        base["events"] = [e for e in spec.get("events", []) if e["year"] > start_grid.year]
+    sets = spec.get("parameter_sets") or [{}]
+    members = [(apply_params(base, sets[i % len(sets)]), spec.get("seed", 0) * 10007 + i)
+               for i in range(runs)]
+    kw = {"until": until} if until is not None else _run_kwargs(spec)
+    if workers and workers > 1 and runs > 1:
+        return _parallel_ensemble(members, grid0, kw, workers, progress)
+    it = iter(members)
+
+    def factory(_seed):
+        m_spec, m_seed = next(it)
+        return build_simulation(m_spec, grid0.copy(), seed=m_seed)
+    return run_ensemble(factory, runs=runs, progress=progress, **kw)
+
+
+_ENS: dict = {}
+
+
+def _init_ensemble_worker(grid):
+    _ENS["grid"] = grid
+
+
+def _run_member(spec, seed, kw):
+    hist = build_simulation(spec, _ENS["grid"].copy(), seed=seed).run(**kw)
+    dens = hist.stack("density").astype(np.float32) if "density" in hist.frames[0].layers else None
+    return (np.array([f.year for f in hist.frames]), hist.stack("urban").astype(np.uint8),
+            dens, hist.records)
+
+
+def _parallel_ensemble(members, grid0, kw, workers, progress):
+    from concurrent.futures import ProcessPoolExecutor
+    from .engine.montecarlo import Ensemble
+    acc = dens = years = None
+    records = []
+    with ProcessPoolExecutor(min(workers, len(members)), initializer=_init_ensemble_worker,
+                             initargs=(grid0,)) as pool:
+        futs = [pool.submit(_run_member, m, sd, kw) for m, sd in members]
+        for i, f in enumerate(futs):
+            years, u, d, rec = f.result()
+            acc = u.astype(np.float32) if acc is None else acc + u
+            if d is not None:
+                dens = d if dens is None else dens + d
+            records.append(rec)
+            if progress:
+                print(f"\r  run {i + 1}/{len(members)}", end="", flush=True)
+    if progress:
+        print()
+    n = len(members)
+    return Ensemble(years=years, probability=acc / n, records=records,
+                    density=None if dens is None else dens / n)
 
 
 def compare_scenarios(paths: list, out_dir: str | Path | None = None, runs: int = 10,
@@ -245,7 +327,7 @@ def compare_scenarios(paths: list, out_dir: str | Path | None = None, runs: int 
     for name, s in zip(names, specs):
         if progress:
             print(f"[{name}] {runs} runs")
-        ens[name] = run_scenario_ensemble(s, runs, progress=progress)
+        ens[name] = run_scenario_ensemble(s, runs, progress=progress, workers=default_workers(s))
 
     viz.style.apply()
     k = len(names)

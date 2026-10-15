@@ -11,7 +11,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7"]
+learn = ["scikit-learn>=1.2", "joblib>=1.2"]
+dev = ["pytest>=7", "scikit-learn>=1.2", "joblib>=1.2"]
 
 [project.scripts]
 cityca = "cityca.cli:main"

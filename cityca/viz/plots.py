@@ -120,3 +120,57 @@ def plot_anchor_strength(anchors, years):
     ax.legend(loc="upper left")
     fig.tight_layout()
     return fig
+
+
+def plot_validation(results: list[dict], metrics=("fom", "area_err", "density_skill")):
+    """Rolling-origin results: each metric vs forecast horizon, one line per method.
+
+    Points are individual (origin, target) forecasts; lines are means by horizon.
+    """
+    style.apply()
+    labels = {"fom": "Figure of merit on change (P ≥ 0.5)", "area_err": "Area error (expected − observed)",
+              "density_skill": "Density skill vs no change"}
+    metrics = [m for m in metrics if any(r.get(m) is not None for r in results)]
+    methods = list(dict.fromkeys(r["method"] for r in results))[:8]
+    fig, axes = plt.subplots(1, len(metrics), figsize=(5.4 * len(metrics), 3.6), squeeze=False)
+    for ax, m in zip(axes.ravel(), metrics):
+        for i, meth in enumerate(methods):
+            rows = [r for r in results if r["method"] == meth and r.get(m) is not None]
+            if not rows:
+                continue
+            h = np.array([r["horizon"] for r in rows])
+            v = np.array([r[m] for r in rows], float)
+            c = style.SERIES[i]
+            ax.plot(h, v, "o", ms=8, color=c, mec=style.SURFACE, mew=1.5, alpha=0.55)
+            hs = np.unique(h)
+            means = [np.nanmean(v[h == x]) for x in hs]
+            ax.plot(hs, means, color=c, label=meth)
+            if len(methods) <= 4:
+                _end_label(ax, hs, means, meth, c)
+        if m == "area_err":
+            ax.axhline(0, color=style.INK_MUTED, lw=1)
+            ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{100 * x:+.0f}%"))
+        ax.set_title(labels.get(m, m), loc="left")
+        ax.set_xlabel("Forecast horizon (years)")
+    axes.ravel()[0].legend(loc="best")
+    fig.tight_layout()
+    return fig
+
+
+def plot_importance(importance: list[dict], top: int = 12, title="What predicts new urban land"):
+    """Permutation importance (drop in held-out ROC AUC when a feature is shuffled)."""
+    style.apply()
+    rows = importance[:top][::-1]
+    fig, ax = plt.subplots(figsize=(7, 0.32 * len(rows) + 1.2))
+    vals = [r["auc_drop"] for r in rows]
+    ax.barh(range(len(rows)), vals, xerr=[r.get("std", 0) for r in rows], color=style.SERIES[0],
+            height=0.7, error_kw={"ecolor": style.INK_MUTED, "lw": 1})
+    ax.set_yticks(range(len(rows)), [r["feature"] for r in rows])
+    for k, v in enumerate(vals):
+        ax.annotate(f"{v:.3f}", (v, k), xytext=(4, 0), textcoords="offset points", va="center",
+                    fontsize=8, color=style.INK_2)
+    ax.set_xlabel("Drop in held-out ROC AUC when shuffled")
+    ax.set_title(title, loc="left")
+    ax.grid(axis="y", visible=False)
+    fig.tight_layout()
+    return fig

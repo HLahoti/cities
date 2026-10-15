@@ -31,7 +31,8 @@ class Simulation:
         self.model = model
         self.processes = list(processes or [])
         self.field = field or AnchorField()
-        self.events = sorted(events or [], key=lambda e: e.year)
+        # Events dated at or before the start year are history: already in the grid.
+        self.events = sorted((e for e in (events or []) if e.year > grid.year), key=lambda e: e.year)
         self.dt = dt
         self.rng = np.random.default_rng(seed)
         self.record = RecordSpec.build(record)
