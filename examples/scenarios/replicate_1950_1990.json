@@ -1,0 +1,16 @@
+{
+  "name": "replicate_1950_1990",
+  "title": "Riverton replication (SLEUTH, untuned)",
+  "city": "../riverton_1950.city.json",
+  "seed": 3,
+  "until": 1990,
+  "model": {
+    "type": "sleuth",
+    "diffusion": 10, "breed": 10, "spread": 15, "slope_resistance": 30, "road_gravity": 25,
+    "critical_slope": 18,
+    "self_modification": {"enabled": true, "critical_high": 4.0, "critical_low": 2.0, "boom": 1.02, "bust": 0.95}
+  },
+  "record": {"every": 1},
+  "monte_carlo": {"runs": 10},
+  "output": {"root": "../../runs", "animation": "growth.mp4", "fps": 8}
+}

@@ -1,0 +1,27 @@
+[project]
+name = "cityca"
+version = "0.1.0"
+description = "Cellular-automata modelling of urban growth: city grids, growth engines, anchor potential fields, visualisation."
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "matplotlib>=3.7",
+    "pillow>=9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+cityca = "cityca.cli:main"
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["cityca*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

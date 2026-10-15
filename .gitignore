@@ -1,0 +1,20 @@
+# Generated outputs
+runs/
+
+# Raw downloaded data (re-fetch with tools/build_bangalore.py; see examples/bangalore/README.md)
+data/
+
+# Third-party reference papers
+research/
+
+# Python / tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+.venv/
+build/
+dist/
+
+# OS
+.DS_Store

@@ -1,0 +1,142 @@
+{
+  "format": "cityca/1",
+  "name": "Riverton",
+  "year": 1950.0,
+  "grid": {
+    "height": 200,
+    "width": 200,
+    "cell_size": 100.0,
+    "units": "cells"
+  },
+  "meta": {
+    "description": "Synthetic coastal river-mouth city (twin-experiment data)",
+    "truth_model": {
+      "type": "sleuth",
+      "diffusion": 4,
+      "breed": 15,
+      "spread": 9,
+      "slope_resistance": 50,
+      "road_gravity": 35,
+      "critical_slope": 18,
+      "self_modification": {
+        "enabled": true,
+        "critical_high": 4.0,
+        "critical_low": 2.0,
+        "boom": 1.02,
+        "bust": 0.95
+      }
+    }
+  },
+  "layers": {
+    "urban": {
+      "source": "npz",
+      "key": "urban"
+    },
+    "urbanized_at": {
+      "source": "npz",
+      "key": "urbanized_at"
+    },
+    "elevation": {
+      "source": "npz",
+      "key": "elevation"
+    },
+    "water": {
+      "source": "npz",
+      "key": "water"
+    },
+    "excluded": {
+      "source": "npz",
+      "key": "excluded"
+    },
+    "roads": {
+      "source": "npz",
+      "key": "roads"
+    }
+  },
+  "features": [],
+  "anchors": [
+    {
+      "name": "CBD",
+      "position": [
+        44.0,
+        92.0
+      ],
+      "kind": "cbd",
+      "mass": 1.0,
+      "decay": {
+        "type": "power",
+        "scale": 8.0,
+        "beta": 1.5
+      },
+      "metric": "euclidean",
+      "announce_year": null,
+      "open_year": null,
+      "anticipation": 0.25,
+      "ramp_years": 0.0,
+      "footprint_radius": 0.0,
+      "access_road": 0,
+      "meta": {}
+    },
+    {
+      "name": "Port",
+      "position": [
+        30.0,
+        104.0
+      ],
+      "kind": "port",
+      "mass": 0.6,
+      "decay": {
+        "type": "dog",
+        "scale": 18.0,
+        "inner": 3.0,
+        "inner_strength": 0.6
+      },
+      "metric": "euclidean",
+      "announce_year": null,
+      "open_year": null,
+      "anticipation": 0.25,
+      "ramp_years": 0.0,
+      "footprint_radius": 0.0,
+      "access_road": 0,
+      "meta": {}
+    }
+  ],
+  "observed": [
+    {
+      "year": 1960.0,
+      "layers": {
+        "urban": {
+          "source": "npz",
+          "key": "obs_1960_urban"
+        }
+      }
+    },
+    {
+      "year": 1970.0,
+      "layers": {
+        "urban": {
+          "source": "npz",
+          "key": "obs_1970_urban"
+        }
+      }
+    },
+    {
+      "year": 1980.0,
+      "layers": {
+        "urban": {
+          "source": "npz",
+          "key": "obs_1980_urban"
+        }
+      }
+    },
+    {
+      "year": 1990.0,
+      "layers": {
+        "urban": {
+          "source": "npz",
+          "key": "obs_1990_urban"
+        }
+      }
+    }
+  ]
+}

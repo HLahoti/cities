@@ -1,0 +1,240 @@
+{
+  "format": "cityca/1",
+  "name": "Bangalore",
+  "year": 2004.0,
+  "grid": {
+    "height": 408,
+    "width": 408,
+    "cell_size": 147.6,
+    "units": "cells"
+  },
+  "meta": {
+    "description": "Bengaluru, 2004, from WSF-Evolution / OSM / SRTM",
+    "georef": {
+      "crs": "EPSG:4326",
+      "west": 77.35006635981028,
+      "north": 13.300096770559989,
+      "cell_deg": 0.0013474729261792823,
+      "rows": 408,
+      "cols": 408,
+      "note": "cell (r, c) spans lon west+c*cell_deg.., lat north-r*cell_deg.."
+    },
+    "urban_threshold": 0.25,
+    "urban_threshold_2019": 0.1392,
+    "cell_size_xy_m": [
+      146.1,
+      149.0
+    ],
+    "sources": {
+      "urban": "DLR WSF Evolution v1 (1985-2015) & WSF 2019 v1, CC BY 4.0",
+      "roads/rail/water/protected": "OpenStreetMap contributors, ODbL (present-day, filtered to 2004)",
+      "elevation": "AWS Terrain Tiles (SRTM-derived)"
+    },
+    "caveats": [
+      "OSM gives today's network; known post-2004 highways are removed and re-added as scenario events, but newer secondary roads remain.",
+      "Observed 2019 comes from WSF2019 (Sentinel/Landsat, 10 m) while earlier years come from WSF-Evolution (Landsat, 30 m); 2019 uses a ratio-harmonised threshold and 2019 \u2287 2015 \u2014 lowest confidence.",
+      "Lakes and protected land are present-day extents."
+    ]
+  },
+  "layers": {
+    "urban": {
+      "source": "npz",
+      "key": "urban"
+    },
+    "urbanized_at": {
+      "source": "npz",
+      "key": "urbanized_at"
+    },
+    "elevation": {
+      "source": "npz",
+      "key": "elevation"
+    },
+    "water": {
+      "source": "npz",
+      "key": "water"
+    },
+    "excluded": {
+      "source": "npz",
+      "key": "excluded"
+    },
+    "roads": {
+      "source": "npz",
+      "key": "roads"
+    },
+    "rail": {
+      "source": "npz",
+      "key": "rail"
+    }
+  },
+  "features": [],
+  "anchors": [
+    {
+      "name": "CBD",
+      "position": [
+        177.56,
+        239.13
+      ],
+      "kind": "cbd",
+      "mass": 1.0,
+      "decay": {
+        "type": "power",
+        "scale": 8.0,
+        "beta": 1.5
+      },
+      "metric": "euclidean",
+      "announce_year": null,
+      "open_year": null,
+      "anticipation": 0.25,
+      "ramp_years": 0.0,
+      "footprint_radius": 0.0,
+      "access_road": 0,
+      "meta": {}
+    },
+    {
+      "name": "HAL Airport",
+      "position": [
+        237.38,
+        258.2
+      ],
+      "kind": "airport",
+      "mass": 1.2,
+      "decay": {
+        "type": "dog",
+        "scale": 25.0,
+        "inner": 7.0,
+        "inner_strength": 1.8
+      },
+      "metric": "travel",
+      "announce_year": null,
+      "open_year": null,
+      "anticipation": 0.35,
+      "ramp_years": 8.0,
+      "footprint_radius": 0,
+      "access_road": 0,
+      "meta": {
+        "capacity": 1500
+      }
+    },
+    {
+      "name": "Electronic City",
+      "position": [
+        233.22,
+        333.75
+      ],
+      "kind": "subcenter",
+      "mass": 0.6,
+      "decay": {
+        "type": "exponential",
+        "scale": 10.0
+      },
+      "metric": "euclidean",
+      "announce_year": null,
+      "open_year": null,
+      "anticipation": 0.25,
+      "ramp_years": 0.0,
+      "footprint_radius": 0.0,
+      "access_road": 0,
+      "meta": {}
+    },
+    {
+      "name": "ITPL Whitefield",
+      "position": [
+        286.58,
+        231.34
+      ],
+      "kind": "subcenter",
+      "mass": 0.5,
+      "decay": {
+        "type": "exponential",
+        "scale": 10.0
+      },
+      "metric": "euclidean",
+      "announce_year": null,
+      "open_year": null,
+      "anticipation": 0.25,
+      "ramp_years": 0.0,
+      "footprint_radius": 0.0,
+      "access_road": 0,
+      "meta": {}
+    },
+    {
+      "name": "Peenya",
+      "position": [
+        114.11,
+        210.34
+      ],
+      "kind": "industrial",
+      "mass": 0.5,
+      "decay": {
+        "type": "dog",
+        "scale": 14.0,
+        "inner": 2.5,
+        "inner_strength": 0.5
+      },
+      "metric": "euclidean",
+      "announce_year": null,
+      "open_year": null,
+      "anticipation": 0.25,
+      "ramp_years": 0.0,
+      "footprint_radius": 0.0,
+      "access_road": 0,
+      "meta": {}
+    }
+  ],
+  "observed": [
+    {
+      "year": 2006.0,
+      "layers": {
+        "urban": {
+          "source": "npz",
+          "key": "obs_2006_urban"
+        }
+      }
+    },
+    {
+      "year": 2008.0,
+      "layers": {
+        "urban": {
+          "source": "npz",
+          "key": "obs_2008_urban"
+        }
+      }
+    },
+    {
+      "year": 2010.0,
+      "layers": {
+        "urban": {
+          "source": "npz",
+          "key": "obs_2010_urban"
+        }
+      }
+    },
+    {
+      "year": 2012.0,
+      "layers": {
+        "urban": {
+          "source": "npz",
+          "key": "obs_2012_urban"
+        }
+      }
+    },
+    {
+      "year": 2015.0,
+      "layers": {
+        "urban": {
+          "source": "npz",
+          "key": "obs_2015_urban"
+        }
+      }
+    },
+    {
+      "year": 2019.0,
+      "layers": {
+        "urban": {
+          "source": "npz",
+          "key": "obs_2019_urban"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "name": "airport",
+  "title": "Riverton — new airport",
+  "city": "../riverton.city.json",
+  "seed": 11,
+  "until": 2030,
+  "model": {
+    "type": "sleuth",
+    "diffusion": 4, "breed": 15, "spread": 9, "slope_resistance": 50, "road_gravity": 35,
+    "critical_slope": 18,
+    "modifiers": [{"type": "anchor", "gain": 1.5}], "anchor_seeding": 15,
+    "self_modification": {"enabled": true, "critical_high": 4.0, "critical_low": 2.0, "boom": 1.02, "bust": 0.95}
+  },
+  "anchors": [
+    {"name": "Airport", "kind": "airport", "position": [125, 150],
+     "announce_year": 1995, "open_year": 2002}
+  ],
+  "record": {"every": 1},
+  "monte_carlo": {"runs": 10},
+  "output": {"root": "../../runs", "animation": "growth.mp4", "fps": 8, "show_field": true}
+}

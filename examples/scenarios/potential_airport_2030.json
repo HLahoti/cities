@@ -1,0 +1,32 @@
+{
+  "name": "potential_airport",
+  "title": "Riverton — constrained CA + airport",
+  "city": "../riverton.city.json",
+  "seed": 5,
+  "until": 2030,
+  "model": {
+    "type": "potential",
+    "combine": "product",
+    "factors": [
+      {"type": "neighborhood", "radius": 2, "floor": 0.03, "weight": 1.0},
+      {"type": "slope", "critical": 18, "resistance": 50},
+      {"type": "road_access", "scale": 5, "floor": 0.15},
+      {"type": "anchor", "gain": 2.0},
+      {"type": "excluded"},
+      {"type": "noise", "alpha": 0.6}
+    ],
+    "demand": {"type": "allometric", "a": 2.2, "capacity": 9000, "exponent": 0.75},
+    "allocator": {"type": "roulette", "gamma": 3.0}
+  },
+  "anchors": [
+    {"name": "Airport", "kind": "airport", "position": [125, 150],
+     "announce_year": 1995, "open_year": 2002}
+  ],
+  "events": [
+    {"type": "add_road", "year": 2005, "value": 2, "label": "Airport–Port link",
+     "coords": [[125, 150], [80, 140], [48, 130]]}
+  ],
+  "record": {"every": 1},
+  "monte_carlo": {"runs": 10},
+  "output": {"root": "../../runs", "animation": "growth.mp4", "fps": 8, "show_field": true}
+}
