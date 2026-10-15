@@ -55,6 +55,49 @@ class NeighborhoodFactor(Factor):
         return _floor(np.clip(d, 0, 1) ** self.power, self.floor)
 
 
+@FACTORS.register("urban_field")
+class UrbanFieldFactor(Factor):
+    """How much city surrounds a cell, at the scale of kilometres.
+
+    Gaussian-weighted urban share within ``radius`` cells, mapped through
+    min(1, (share / ref)^power). On the city fringe the field is high; around
+    an isolated village it is tiny, and it rises as the city approaches. Used
+    to modulate edge growth, so villages grow because the city reaches them,
+    not on their own.
+    """
+    name = "urban_field"
+
+    def __init__(self, radius: float = 20.0, ref: float = 0.3, power: float = 1.0,
+                 floor: float = 0.0, **kw):
+        super().__init__(**kw)
+        self.radius, self.ref, self.power, self.floor = radius, ref, power, floor
+
+    def __call__(self, grid, ctx):
+        d = grid.derive("urban_density", radius=self.radius,
+                        decay={"type": "gaussian", "scale": self.radius / 2.0})
+        return _floor(np.clip(d / self.ref, 0.0, 1.0) ** self.power, self.floor)
+
+
+@FACTORS.register("cluster_size")
+class ClusterSizeFactor(Factor):
+    """Size of the urban cluster a cell belongs to (or touches): min(1, (S/ref)^power).
+
+    An allometric alternative to ``urban_field``: big organisms grow, small
+    ones barely do. Non-urban cells get the size of the largest adjacent cluster.
+    """
+    name = "cluster_size"
+
+    def __init__(self, ref: float = 2000.0, power: float = 0.5, floor: float = 0.0, **kw):
+        super().__init__(**kw)
+        self.ref, self.power, self.floor = ref, power, floor
+
+    def __call__(self, grid, ctx):
+        from scipy import ndimage
+        size = grid.derive("cluster_size_map")
+        size = ndimage.grey_dilation(size, size=(3, 3))
+        return _floor(np.clip(size / self.ref, 0.0, 1.0) ** self.power, self.floor)
+
+
 @FACTORS.register("slope")
 class SlopeFactor(Factor):
     """SLEUTH slope acceptance: ((crit - s)/crit)^(resistance/50), 0 above crit."""

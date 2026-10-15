@@ -1,0 +1,1137 @@
+{
+ "tech_parks": [
+  {
+   "name": "Bagmane Tech Park",
+   "kind": "tech_park",
+   "position": [
+    228.66,
+    237.97
+   ],
+   "announce_year": 1996,
+   "open_year": 1998,
+   "meta": {
+    "note": "most sources 1998 (one says 2001)"
+   }
+  },
+  {
+   "name": "Manyata Tech Park",
+   "kind": "tech_park",
+   "position": [
+    200.64,
+    186.38
+   ],
+   "announce_year": 1999,
+   "open_year": 2001,
+   "meta": {
+    "note": "sources give 2001-2005; grew in phases"
+   }
+  },
+  {
+   "name": "Prestige Tech Park",
+   "kind": "tech_park",
+   "position": [
+    254.44,
+    265.05
+   ],
+   "announce_year": 2002,
+   "open_year": 2004,
+   "meta": {
+    "note": "ORR Marathahalli-Sarjapur corridor"
+   }
+  },
+  {
+   "name": "RMZ Ecospace",
+   "kind": "tech_park",
+   "position": [
+    245.16,
+    278.52
+   ],
+   "announce_year": 2004,
+   "open_year": 2006,
+   "meta": {
+    "note": "ORR Bellandur"
+   }
+  },
+  {
+   "name": "Embassy Tech Village",
+   "kind": "tech_park",
+   "position": [
+    252.82,
+    273.66
+   ],
+   "announce_year": 2006,
+   "open_year": 2008,
+   "meta": {
+    "note": "ORR Devarabeesanahalli (formerly Vrindavan Tech Village)"
+   }
+  }
+ ],
+ "stations": [
+  {
+   "name": "Metro: Attiguppe",
+   "kind": "station",
+   "position": [
+    135.69,
+    250.49
+   ],
+   "announce_year": 2010.87,
+   "open_year": 2015.87,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Baiyappanahalli",
+   "kind": "station",
+   "position": [
+    223.84,
+    229.07
+   ],
+   "announce_year": 2006.8,
+   "open_year": 2011.8,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Banashankari",
+   "kind": "station",
+   "position": [
+    165.39,
+    285.13
+   ],
+   "announce_year": 2012.46,
+   "open_year": 2017.46,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Benniganahalli",
+   "kind": "station",
+   "position": [
+    235.79,
+    224.8
+   ],
+   "announce_year": 2018.77,
+   "open_year": 2023.77,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Beratena Agrahara",
+   "kind": "station",
+   "position": [
+    227.96,
+    323.23
+   ],
+   "announce_year": 2020.61,
+   "open_year": 2025.61,
+   "meta": {
+    "line": "Yellow"
+   }
+  },
+  {
+   "name": "Metro: Biocon Hebbagodi",
+   "kind": "station",
+   "position": [
+    245.37,
+    349.09
+   ],
+   "announce_year": 2020.61,
+   "open_year": 2025.61,
+   "meta": {
+    "line": "Yellow"
+   }
+  },
+  {
+   "name": "Metro: Bommanahalli",
+   "kind": "station",
+   "position": [
+    204.63,
+    288.55
+   ],
+   "announce_year": 2020.61,
+   "open_year": 2025.61,
+   "meta": {
+    "line": "Yellow"
+   }
+  },
+  {
+   "name": "Metro: BTM Layout",
+   "kind": "station",
+   "position": [
+    191.01,
+    284.11
+   ],
+   "announce_year": 2020.61,
+   "open_year": 2025.61,
+   "meta": {
+    "line": "Yellow"
+   }
+  },
+  {
+   "name": "Metro: Central Silk Board",
+   "kind": "station",
+   "position": [
+    200.25,
+    284.12
+   ],
+   "announce_year": 2020.61,
+   "open_year": 2025.61,
+   "meta": {
+    "line": "Yellow"
+   }
+  },
+  {
+   "name": "Metro: Challaghatta",
+   "kind": "station",
+   "position": [
+    82.04,
+    298.39
+   ],
+   "announce_year": 2018.77,
+   "open_year": 2023.77,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Chickpete",
+   "kind": "station",
+   "position": [
+    166.1,
+    246.78
+   ],
+   "announce_year": 2012.46,
+   "open_year": 2017.46,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Chikkabidarakallu",
+   "kind": "station",
+   "position": [
+    101.8,
+    183.35
+   ],
+   "announce_year": 2019.85,
+   "open_year": 2024.85,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Cubbon Park",
+   "kind": "station",
+   "position": [
+    183.18,
+    236.34
+   ],
+   "announce_year": 2011.33,
+   "open_year": 2016.33,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Dasarahalli",
+   "kind": "station",
+   "position": [
+    120.09,
+    190.11
+   ],
+   "announce_year": 2010.33,
+   "open_year": 2015.33,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Deepanjali Nagar",
+   "kind": "station",
+   "position": [
+    138.24,
+    257.79
+   ],
+   "announce_year": 2010.87,
+   "open_year": 2015.87,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Delta Electronics Bommasandra",
+   "kind": "station",
+   "position": [
+    250.55,
+    356.24
+   ],
+   "announce_year": 2020.61,
+   "open_year": 2025.61,
+   "meta": {
+    "line": "Yellow"
+   }
+  },
+  {
+   "name": "Metro: Doddakallasandra",
+   "kind": "station",
+   "position": [
+    149.92,
+    307.82
+   ],
+   "announce_year": 2016.04,
+   "open_year": 2021.04,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Dr. B. R. Ambedkar Station, Vidhana Soudha",
+   "kind": "station",
+   "position": [
+    178.78,
+    237.99
+   ],
+   "announce_year": 2011.33,
+   "open_year": 2016.33,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Electronic City",
+   "kind": "station",
+   "position": [
+    232.13,
+    328.7
+   ],
+   "announce_year": 2020.61,
+   "open_year": 2025.61,
+   "meta": {
+    "line": "Yellow"
+   }
+  },
+  {
+   "name": "Metro: Garudacharpalya",
+   "kind": "station",
+   "position": [
+    261.92,
+    227.07
+   ],
+   "announce_year": 2018.23,
+   "open_year": 2023.23,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Halasuru",
+   "kind": "station",
+   "position": [
+    204.79,
+    239.65
+   ],
+   "announce_year": 2006.8,
+   "open_year": 2011.8,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Hongasandra",
+   "kind": "station",
+   "position": [
+    208.72,
+    295.17
+   ],
+   "announce_year": 2020.61,
+   "open_year": 2025.61,
+   "meta": {
+    "line": "Yellow"
+   }
+  },
+  {
+   "name": "Metro: Hoodi",
+   "kind": "station",
+   "position": [
+    267.6,
+    230.52
+   ],
+   "announce_year": 2018.23,
+   "open_year": 2023.23,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Hopefarm Channasandra",
+   "kind": "station",
+   "position": [
+    299.19,
+    231.64
+   ],
+   "announce_year": 2018.23,
+   "open_year": 2023.23,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Hosa Road",
+   "kind": "station",
+   "position": [
+    223.91,
+    318.13
+   ],
+   "announce_year": 2020.61,
+   "open_year": 2025.61,
+   "meta": {
+    "line": "Yellow"
+   }
+  },
+  {
+   "name": "Metro: Hosahalli",
+   "kind": "station",
+   "position": [
+    144.63,
+    241.29
+   ],
+   "announce_year": 2010.87,
+   "open_year": 2015.87,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Huskur Road",
+   "kind": "station",
+   "position": [
+    242.4,
+    341.58
+   ],
+   "announce_year": 2020.61,
+   "open_year": 2025.61,
+   "meta": {
+    "line": "Yellow"
+   }
+  },
+  {
+   "name": "Metro: Indira Nagar",
+   "kind": "station",
+   "position": [
+    213.67,
+    238.29
+   ],
+   "announce_year": 2006.8,
+   "open_year": 2011.8,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Infosys Foundation Konappana Agrahara",
+   "kind": "station",
+   "position": [
+    237.81,
+    336.17
+   ],
+   "announce_year": 2020.61,
+   "open_year": 2025.61,
+   "meta": {
+    "line": "Yellow"
+   }
+  },
+  {
+   "name": "Metro: Jalahalli",
+   "kind": "station",
+   "position": [
+    125.42,
+    192.96
+   ],
+   "announce_year": 2010.33,
+   "open_year": 2015.33,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Jayadeva Hospital",
+   "kind": "station",
+   "position": [
+    184.96,
+    284.01
+   ],
+   "announce_year": 2020.61,
+   "open_year": 2025.61,
+   "meta": {
+    "line": "Yellow"
+   }
+  },
+  {
+   "name": "Metro: Jayanagar",
+   "kind": "station",
+   "position": [
+    170.25,
+    274.53
+   ],
+   "announce_year": 2012.46,
+   "open_year": 2017.46,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Jaya Prakash Nagar",
+   "kind": "station",
+   "position": [
+    165.04,
+    290.88
+   ],
+   "announce_year": 2012.46,
+   "open_year": 2017.46,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Jnanabharathi",
+   "kind": "station",
+   "position": [
+    119.98,
+    270.13
+   ],
+   "announce_year": 2016.66,
+   "open_year": 2021.66,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Kadugodi Tree Park",
+   "kind": "station",
+   "position": [
+    294.09,
+    232.86
+   ],
+   "announce_year": 2018.23,
+   "open_year": 2023.23,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Kengeri",
+   "kind": "station",
+   "position": [
+    93.39,
+    290.55
+   ],
+   "announce_year": 2016.66,
+   "open_year": 2021.66,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Kengeri Bus Terminal",
+   "kind": "station",
+   "position": [
+    101.76,
+    285.52
+   ],
+   "announce_year": 2016.66,
+   "open_year": 2021.66,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Konanakunte Cross",
+   "kind": "station",
+   "position": [
+    157.28,
+    304.61
+   ],
+   "announce_year": 2016.04,
+   "open_year": 2021.04,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Krantivira Sangolli Rayanna Railway Station",
+   "kind": "station",
+   "position": [
+    159.29,
+    240.11
+   ],
+   "announce_year": 2011.33,
+   "open_year": 2016.33,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Krishna Rajendra Market",
+   "kind": "station",
+   "position": [
+    166.18,
+    251.24
+   ],
+   "announce_year": 2012.46,
+   "open_year": 2017.46,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Krishnarajapura",
+   "kind": "station",
+   "position": [
+    242.62,
+    222.28
+   ],
+   "announce_year": 2018.23,
+   "open_year": 2023.23,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Kudlu Gate",
+   "kind": "station",
+   "position": [
+    214.09,
+    303.9
+   ],
+   "announce_year": 2020.61,
+   "open_year": 2025.61,
+   "meta": {
+    "line": "Yellow"
+   }
+  },
+  {
+   "name": "Metro: Kundalahalli",
+   "kind": "station",
+   "position": [
+    270.74,
+    238.84
+   ],
+   "announce_year": 2018.23,
+   "open_year": 2023.23,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Lalbagh",
+   "kind": "station",
+   "position": [
+    170.15,
+    261.9
+   ],
+   "announce_year": 2012.46,
+   "open_year": 2017.46,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Madavara",
+   "kind": "station",
+   "position": [
+    90.59,
+    179.6
+   ],
+   "announce_year": 2019.85,
+   "open_year": 2024.85,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Magadi Road",
+   "kind": "station",
+   "position": [
+    151.85,
+    240.3
+   ],
+   "announce_year": 2010.87,
+   "open_year": 2015.87,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Mahakavi Kuvempu Road",
+   "kind": "station",
+   "position": [
+    153.0,
+    223.3
+   ],
+   "announce_year": 2009.16,
+   "open_year": 2014.16,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Mahalakshmi",
+   "kind": "station",
+   "position": [
+    146.99,
+    216.24
+   ],
+   "announce_year": 2009.16,
+   "open_year": 2014.16,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Mahatma Gandhi Road",
+   "kind": "station",
+   "position": [
+    190.02,
+    240.37
+   ],
+   "announce_year": 2006.8,
+   "open_year": 2011.8,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Manjunathanagara",
+   "kind": "station",
+   "position": [
+    106.65,
+    185.04
+   ],
+   "announce_year": 2019.85,
+   "open_year": 2024.85,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Mantri Square Sampige Road",
+   "kind": "station",
+   "position": [
+    163.26,
+    229.29
+   ],
+   "announce_year": 2009.16,
+   "open_year": 2014.16,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Mysuru Road",
+   "kind": "station",
+   "position": [
+    133.15,
+    261.75
+   ],
+   "announce_year": 2010.87,
+   "open_year": 2015.87,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Nadaprabhu Kempegowda Station, Majestic",
+   "kind": "station",
+   "position": [
+    164.85,
+    240.24
+   ],
+   "announce_year": 2011.33,
+   "open_year": 2016.33,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Nagasandra",
+   "kind": "station",
+   "position": [
+    110.88,
+    186.62
+   ],
+   "announce_year": 2010.33,
+   "open_year": 2015.33,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Nallurhalli",
+   "kind": "station",
+   "position": [
+    277.66,
+    239.55
+   ],
+   "announce_year": 2018.23,
+   "open_year": 2023.23,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: National College",
+   "kind": "station",
+   "position": [
+    165.46,
+    258.93
+   ],
+   "announce_year": 2012.46,
+   "open_year": 2017.46,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Pantharapalya\u2013Nayandahalli",
+   "kind": "station",
+   "position": [
+    129.41,
+    265.5
+   ],
+   "announce_year": 2016.66,
+   "open_year": 2021.66,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Pattanagere",
+   "kind": "station",
+   "position": [
+    109.55,
+    278.43
+   ],
+   "announce_year": 2016.66,
+   "open_year": 2021.66,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Pattandur Agrahara",
+   "kind": "station",
+   "position": [
+    287.23,
+    231.38
+   ],
+   "announce_year": 2018.23,
+   "open_year": 2023.23,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Peenya",
+   "kind": "station",
+   "position": [
+    135.41,
+    197.71
+   ],
+   "announce_year": 2009.16,
+   "open_year": 2014.16,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Peenya Industry",
+   "kind": "station",
+   "position": [
+    129.69,
+    195.26
+   ],
+   "announce_year": 2009.16,
+   "open_year": 2014.16,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Ragigudda",
+   "kind": "station",
+   "position": [
+    176.3,
+    283.75
+   ],
+   "announce_year": 2020.61,
+   "open_year": 2025.61,
+   "meta": {
+    "line": "Yellow"
+   }
+  },
+  {
+   "name": "Metro: Rajajinagar",
+   "kind": "station",
+   "position": [
+    147.62,
+    221.82
+   ],
+   "announce_year": 2009.16,
+   "open_year": 2014.16,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Rajarajeshwari Nagar",
+   "kind": "station",
+   "position": [
+    125.37,
+    269.26
+   ],
+   "announce_year": 2016.66,
+   "open_year": 2021.66,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Rashtreeya Vidyalaya Road",
+   "kind": "station",
+   "position": [
+    170.29,
+    280.41
+   ],
+   "announce_year": 2012.46,
+   "open_year": 2017.46,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Sandal Soap Factory",
+   "kind": "station",
+   "position": [
+    150.83,
+    211.34
+   ],
+   "announce_year": 2009.16,
+   "open_year": 2014.16,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Seetharamapalya",
+   "kind": "station",
+   "position": [
+    265.72,
+    236.42
+   ],
+   "announce_year": 2018.23,
+   "open_year": 2023.23,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Silk Institute",
+   "kind": "station",
+   "position": [
+    133.0,
+    324.83
+   ],
+   "announce_year": 2016.04,
+   "open_year": 2021.04,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Singasandra",
+   "kind": "station",
+   "position": [
+    218.26,
+    310.66
+   ],
+   "announce_year": 2020.61,
+   "open_year": 2025.61,
+   "meta": {
+    "line": "Yellow"
+   }
+  },
+  {
+   "name": "Metro: Singayyanapalya",
+   "kind": "station",
+   "position": [
+    253.79,
+    224.78
+   ],
+   "announce_year": 2018.23,
+   "open_year": 2023.23,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Sir M. Visveshwaraya Station, Central College",
+   "kind": "station",
+   "position": [
+    173.27,
+    241.12
+   ],
+   "announce_year": 2011.33,
+   "open_year": 2016.33,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Southend Circle",
+   "kind": "station",
+   "position": [
+    170.18,
+    268.03
+   ],
+   "announce_year": 2012.46,
+   "open_year": 2017.46,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Sri Sathya Sai Hospital",
+   "kind": "station",
+   "position": [
+    279.63,
+    236.17
+   ],
+   "announce_year": 2018.23,
+   "open_year": 2023.23,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Srirampura",
+   "kind": "station",
+   "position": [
+    157.67,
+    224.79
+   ],
+   "announce_year": 2009.16,
+   "open_year": 2014.16,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Swami Vivekananda Road",
+   "kind": "station",
+   "position": [
+    218.3,
+    232.65
+   ],
+   "announce_year": 2006.8,
+   "open_year": 2011.8,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Thalaghattapura",
+   "kind": "station",
+   "position": [
+    139.26,
+    317.64
+   ],
+   "announce_year": 2016.04,
+   "open_year": 2021.04,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Trinity",
+   "kind": "station",
+   "position": [
+    197.61,
+    242.23
+   ],
+   "announce_year": 2006.8,
+   "open_year": 2011.8,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Vajarahalli",
+   "kind": "station",
+   "position": [
+    143.97,
+    313.17
+   ],
+   "announce_year": 2016.04,
+   "open_year": 2021.04,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Vijayanagar",
+   "kind": "station",
+   "position": [
+    138.53,
+    243.77
+   ],
+   "announce_year": 2010.87,
+   "open_year": 2015.87,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Whitefield (Kadugodi)",
+   "kind": "station",
+   "position": [
+    302.2,
+    225.37
+   ],
+   "announce_year": 2018.23,
+   "open_year": 2023.23,
+   "meta": {
+    "line": "Purple"
+   }
+  },
+  {
+   "name": "Metro: Yelachenahalli",
+   "kind": "station",
+   "position": [
+    162.81,
+    299.36
+   ],
+   "announce_year": 2012.46,
+   "open_year": 2017.46,
+   "meta": {
+    "line": "Green"
+   }
+  },
+  {
+   "name": "Metro: Yeshwanthpur",
+   "kind": "station",
+   "position": [
+    147.78,
+    204.94
+   ],
+   "announce_year": 2009.16,
+   "open_year": 2014.16,
+   "meta": {
+    "line": "Green"
+   }
+  }
+ ]
+}

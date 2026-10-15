@@ -91,17 +91,65 @@ produced almost no built-up growth around it. Bangalore's real growth was
 fringe infill along the ORR, Whitefield, Sarjapur and Electronic City, which
 all the models under-predict.
 
-**Fixes this points to:**
+**Fixes this pointed to** (implemented in v2, below):
 
 1. **Anchor effects should take longer.** A 4–5 year anticipation-and-ramp is
-   far too fast for a greenfield airport 30 km out. Calibrate anchor masses and
-   ramps (and per-anchor gains) rather than only model coefficients.
+   far too fast for a greenfield airport 30 km out.
 2. **Rural villages should not grow like the city edge.** SLEUTH edge growth
-   grows a ring around every village. Make spread depend on cluster size or
-   local density.
-3. **Add jobs-based anchors.** The tech-park corridors (ORR, Sarjapur,
-   Manyata) pulled growth, and the model has no anchors for them after 2004.
-   Dated metro stations from 2011 onward would help too.
-4. **Better observed data.** The 2015→2019 jump mixes two sensors. GHSL
-   R2023A epochs, or a single consistent product, would make the "now"
-   comparison cleaner.
+   grew a ring around every village.
+3. **Add jobs-based anchors.** Tech-park corridors and the metro had no
+   anchors.
+4. **Better observed data.** The 2015→2019 jump mixes two sensors. This one
+   is still open.
+
+## v2: the three fixes (2026-10-15)
+
+| Fix | Implementation |
+|---|---|
+| Slow KIA build-up | Anchors gain a `ramp_shape` option; `logistic` is a slow-start S-curve. The airport preset now has 5 % anticipation and a ~20-year ramp. KIA's `mass` and `ramp_years` are calibrated (`anchors.0.*`). |
+| City-influenced villages | A new `urban_field` factor measures the Gaussian-weighted urban share within ~3 km, saturating at `ref`. SLEUTH `edge_modifiers` scale edge growth at each source cell by it, so a village spreads only once the city reaches it. `ref` is calibrated. |
+| Tech parks and metro | New `tech_park` and `station` anchor kinds with dated openings from `sources/*.tsv`: 5 parks and 82 stations, matched to OSM. A per-anchor `seeds` weight keeps stations from leapfrog-seeding. `field.kind_weights` scales each anchor kind and is calibrated. |
+
+`tools/build_bangalore_v2.py` writes the cumulative ablation scenarios:
+
+* **B:** A + slow KIA ramp.
+* **C:** B + the village fix.
+* **D:** C + tech parks and metro.
+
+The `calibrated_v2_*.json` files hold each variant's calibrated parameters.
+Every variant used the same calibration budget (60 trials × 2 runs, fit on
+2006–2015). Results below are 20-run ensembles; 2019 is held out.
+
+| Variant | Calibration score (2006–15) | 2019 area error | 2019 FoM (P ≥ 0.5) | KIA ≤ 10 km new cells (obs 1,219) | Rural > 3 km new cells (obs 6,897) |
+|---|---|---|---|---|---|
+| A baseline | 0.193 | +15.0 % | 0.322 | 4,610 (3.8×) | 12,314 (1.8×) |
+| B + KIA ramp | 0.203 | +8.0 % | 0.334 | 3,031 (2.5×) | 9,774 (1.4×) |
+| C + villages | **0.245** | +3.7 % | **0.366** | **1,296 (1.06×)** | 4,743 (0.69×) |
+| D + tech/metro | 0.235 | **+0.8 %** | 0.363 | 1,414 (1.16×) | 4,960 (0.72×) |
+
+**What improved**
+
+* **Slow KIA ramp:** helps on its own, but most of the airport error
+  disappears only once the village fix is added. Much of the old blob around
+  KIA was villages near the airport growing rings, boosted by the anchor.
+* **Village fix:** the biggest single gain. FoM on held-out 2019 rose from
+  0.33 to 0.37, the rings are gone, and growth within 10 km of KIA is now
+  within 6–16 % of observed.
+* **Tech parks and metro:** no measurable gain. The total area in 2019 is
+  closest to observed (+0.8 %), but placement accuracy is the same as C.
+  Calibration does favour a strong station weight (≈ 2.8), but:
+  - Within 1 km of the 29 stations open by 2017, only 38 cells became newly
+    urban, because those areas were already built in 2004. The metro's effect
+    there is densification, which a binary built/not-built layer cannot show.
+  - The tech-park catchments are over-predicted by all variants (1.2–1.4×),
+    because most parks sit inside or beside land that was already urban.
+
+**Still wrong**
+
+* **Rural growth is now *under*-predicted** (0.7×), and rural placement is no
+  better (FoM ≈ 0.16). Scattered rural building is hard to place in any
+  variant.
+* **The fringe is over-filled** (1.2–1.3×). The model grows a compact ring
+  where reality left gaps.
+* **Better data would help:** a continuous density or intensity layer so
+  metro densification shows up, and a single-sensor "now" year.

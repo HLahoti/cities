@@ -120,6 +120,17 @@ def urban_density(grid, radius: float = 3.0, decay: str | dict | None = None):
     return kernels.convolve(grid["urban"], k, normalize=True).astype(np.float32)
 
 
+@derived("cluster_size_map", ["urban"])
+def cluster_size_map(grid):
+    """Each urban cell labelled with the size (cells) of its 8-connected cluster."""
+    lab, n = ndimage.label(grid["urban"] > 0, structure=np.ones((3, 3), int))
+    if n == 0:
+        return np.zeros(grid.shape, np.float32)
+    sizes = np.bincount(lab.ravel()).astype(np.float32)
+    sizes[0] = 0
+    return sizes[lab]
+
+
 @derived("urban_distance", ["urban"])
 def urban_distance(grid):
     """Distance (cells) to the nearest urban cell."""

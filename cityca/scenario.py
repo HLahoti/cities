@@ -51,8 +51,12 @@ def _resolve(spec: dict, rel: str) -> Path:
     return p if p.is_absolute() else Path(spec.get("_base", ".")) / p
 
 
-def load_scenario_city(spec: dict):
-    grid = load_city(_resolve(spec, spec["city"]))
+def load_scenario_city(spec: dict, base_city=None):
+    """The scenario's start grid: its city plus scenario anchors.
+
+    Pass an already-loaded ``base_city`` to skip reading the file (it is copied).
+    """
+    grid = base_city.copy() if base_city is not None else load_city(_resolve(spec, spec["city"]))
     for a in spec.get("anchors", []):
         grid.add_anchor(dict(a))
     if "start_year" in spec:

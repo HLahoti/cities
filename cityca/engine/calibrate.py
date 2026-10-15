@@ -62,24 +62,28 @@ def set_path(spec: dict, path: str, value) -> None:
         obj[last] = value
 
 
-def calibrate(make_sim: Callable[[dict, int], "Simulation"], grid0, model_spec: dict,
+def calibrate(make_sim: Callable[[dict, int], "Simulation"], grid0, base_spec: dict,
               space: dict[str, tuple[float, float]], samples: int = 30, runs: int = 2,
               seed: int = 0, integer: bool = False, progress: bool = True,
               until: float | None = None) -> list[dict]:
-    """Random search. ``make_sim(model_spec, seed)`` builds a fresh simulation.
+    """Random search. ``make_sim(spec, seed)`` builds a fresh simulation from a
+    full scenario spec.
 
-    ``space`` maps dotted paths inside ``model_spec`` to (low, high) ranges.
+    ``space`` maps dotted paths inside ``base_spec`` to (low, high) ranges, e.g.
+    ``model.spread`` or ``anchors.0.mass``; a bare name whose first part is not
+    a top-level key is taken as a model parameter (``spread`` → ``model.spread``).
     ``until`` limits calibration to observed years ≤ until (hold the rest out).
     Returns trials sorted best-first: ``{"params": {...}, "score": ..., ...}``.
     """
     rng = np.random.default_rng(seed)
     until = max(grid0.observed) if until is None else until
+    space = {(k if k.split(".")[0] in base_spec else f"model.{k}"): v for k, v in space.items()}
     trials = []
     for i in range(samples):
         params = {k: float(rng.uniform(lo, hi)) for k, (lo, hi) in space.items()}
         if integer:
             params = {k: round(v) for k, v in params.items()}
-        spec = copy.deepcopy(model_spec)
+        spec = copy.deepcopy(base_spec)
         for k, v in params.items():
             set_path(spec, k, v)
         scores = []
@@ -89,7 +93,8 @@ def calibrate(make_sim: Callable[[dict, int], "Simulation"], grid0, model_spec: 
             sim.record.layers = ["urban"]
             sim.record.metrics = []
             scores.append(score_history(sim.run(until=until), grid0, max_year=until))
-        agg = {k: float(np.nanmean([s[k] for s in scores])) for k in scores[0]}
+        agg = {k: float(np.nanmean([s[k] for s in scores])) for k in scores[0]
+               if isinstance(scores[0][k], (int, float))}
         trials.append({"params": params, **agg})
         if progress:
             best = max(t["score"] for t in trials)

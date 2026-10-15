@@ -98,12 +98,16 @@ validation compare against.
 | `neighborhood` | Batty 1997 primer | IF *n* neighbours developed THEN develop with probability *p*, decaying to *pᵏ* after failed attempts |
 
 **Factors** are the cell properties that enter the models, and they are the
-main lever for finding out which properties explain growth: `neighborhood`,
+main lever for finding out which properties explain growth: `urban_field`
+(how much city surrounds a cell, at the km scale), `cluster_size`,
+`neighborhood`,
 `slope`, `road_access`, `center_access`, `anchor`, `excluded`, `water_amenity`,
 `noise`, and the generic `layer` factor, which turns any layer into a factor
 (`linear` / `inverse` / `decay` / `threshold`). Combine them as a `product`
 (weights as exponents), a `sum`, or a `logistic`. SLEUTH accepts the same
-factors as `modifiers`.
+factors as `modifiers`, and as `edge_modifiers`, which scale only edge growth.
+For example, `urban_field` stops isolated villages spreading like the city
+edge.
 
 **Demand laws** set how many cells grow each step. This is where the organism
 analogy lives: `allometric` is West–Brown–Enquist's ontogenetic growth law
@@ -127,6 +131,10 @@ other laws are `logistic`, `exponential`, `constant` and `series`. An anchor's
 * `K_k`: the decay kernel, one of `exponential`, `power`, `gaussian`,
   `linear`, `step`, or `dog`. `dog` is a Mexican hat: airports and ports
   *repel* housing from their noise zone and *attract* it beyond.
+* Ramp shape: `ramp_shape` sets how the strength builds after opening, as
+  `linear`, `saturating`, or `logistic` (slow-start, e.g. an airport city).
+  `seeds` weights an anchor in leapfrog seeding; stations default to almost 0.
+  `field.kind_weights` scales whole anchor kinds at once.
 * `d_k`: either `euclidean` or `travel` distance. Travel distance is
   Dijkstra over a cost surface where highways are 5× faster and water is slow
   except on bridges, so influence stretches along the roads that serve the
@@ -192,9 +200,11 @@ effect on growth around it is strongly overestimated.
 * **Co-evolving networks.** Roads are static except for scheduled events and
   anchor access roads. Growing the network with the city (WBE-style supply
   networks) is the natural next step.
-* **Calibration.** Calibration is a basic random search. Brute-force
-  coarse→fine, as SLEUTH does, or Bayesian optimisation should replace it. The
-  composite score (Lee–Sallee × area accuracy) is a placeholder too.
-* **Speed.** Travel-distance fields cost one Dijkstra run per anchor, which is
-  fine at 200×200 but should use a multi-source approach or downsampling on
-  large grids.
+* **Calibration.** Calibration is a random search over any scenario path
+  (`model.spread`, `anchors.0.mass`, `field.kind_weights.station`). Fit on
+  early years and hold out later ones with `--until`. The score is figure of
+  merit on change × (1 − area error). A coarse→fine search, as SLEUTH does, or
+  Bayesian optimisation should replace the random search: with 10+ parameters,
+  60 trials sample the space thinly.
+* **Speed.** Travel-distance fields cost one Dijkstra run per anchor. They are
+  cached process-wide by road network, so Monte Carlo runs reuse them.

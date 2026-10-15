@@ -20,7 +20,9 @@ Every candidate cell must pass a suitability test: slope acceptance
 anchor potential field). Modifiers also bias where spontaneous growth is
 sampled and scale the edge-growth rate of each source cell, so an announced
 airport attracts leapfrog development and speeds up nearby expansion.
-``anchor_seeding`` (extension to SLEUTH) adds Poisson(anchor_seeding·Σm_k(t))
+``edge_modifiers`` (extension) scale edge growth only, at the source cell —
+e.g. ``{"type": "urban_field"}`` stops isolated villages spreading like the
+city edge. ``anchor_seeding`` (extension to SLEUTH) adds Poisson(anchor_seeding·Σ seeds_k·m_k(t))
 extra seeds per step placed ∝ Φ⁺; they can breed into new spreading centres.
 
 Self-modification: if the growth rate exceeds ``critical_high`` the
@@ -50,6 +52,7 @@ class SleuthModel(GrowthModel):
                  slope_resistance: float = 30, road_gravity: float = 30,
                  critical_slope: float = 21.0, modifiers: list | None = None,
                  spontaneous_bias: bool = True, anchor_seeding: float = 0.0,
+                 edge_modifiers: list | None = None,
                  self_modification: dict | bool | None = None):
         self.initial = dict(diffusion=diffusion, breed=breed, spread=spread,
                             slope_resistance=slope_resistance, road_gravity=road_gravity)
@@ -57,6 +60,7 @@ class SleuthModel(GrowthModel):
         self.modifiers = build_factors(modifiers)
         self.spontaneous_bias = spontaneous_bias
         self.anchor_seeding = anchor_seeding
+        self.edge_modifiers = build_factors(edge_modifiers)
         sm = {"enabled": True} if self_modification is True else (self_modification or {})
         self.sm = {"enabled": sm.get("enabled", bool(sm)),
                    "critical_high": sm.get("critical_high", 1.3),
@@ -135,7 +139,7 @@ class SleuthModel(GrowthModel):
         #     Poisson(anchor_seeding · Σ m_k(t)), placed ∝ max(Φ, 0).
         n_anchor = 0
         if self.anchor_seeding > 0 and grid.anchors:
-            total = sum(a.strength(ctx.year) for a in grid.anchors)
+            total = sum(a.seeds * a.strength(ctx.year) for a in grid.anchors)
             phi = np.maximum(grid["anchor_potential"], 0).ravel()
             k = rng.poisson(self.anchor_seeding * total) if total > 0 else 0
             if k and phi.sum() > 0:
@@ -154,7 +158,10 @@ class SleuthModel(GrowthModel):
         er, ec = np.nonzero((urban > 0) & (nb >= 2) & (nb < 8))
         p_spread = np.full(er.size, self.spread / 100.0)
         if mod is not None:  # modifiers (e.g. anchors) speed up or slow down edge growth
-            p_spread = np.clip(p_spread * mod[er, ec], 0.0, 1.0)
+            p_spread = p_spread * mod[er, ec]
+        if self.edge_modifiers:  # e.g. urban_field: villages only spread once the city is near
+            p_spread = p_spread * combine(self.edge_modifiers, grid, ctx, "product")[er, ec]
+        p_spread = np.clip(p_spread, 0.0, 1.0)
         go = rng.random(er.size) < p_spread
         tr, tc = random_neighbours(er[go], ec[go], 1)
         n_edge = try_cells(tr, tc)[0].size

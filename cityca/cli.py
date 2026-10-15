@@ -65,17 +65,19 @@ def _cmd_compare(a):
 
 def _cmd_calibrate(a):
     from .engine.calibrate import calibrate
-    from .scenario import build_simulation, load_scenario, load_scenario_city, output_dir
+    from .grid import load_city
+    from .scenario import _resolve, build_simulation, load_scenario, load_scenario_city, output_dir
 
     spec = load_scenario(a.scenario)
-    grid0 = load_scenario_city(spec)
+    base_city = load_city(_resolve(spec, spec["city"]))
+    grid0 = load_scenario_city(spec, base_city)
     space = {}
     for item in a.space:
         k, rng = item.split("=")
         lo, hi = rng.split(":")
         space[k] = (float(lo), float(hi))
-    trials = calibrate(lambda m, s: build_simulation(spec, grid0.copy(), seed=s, model_spec=m),
-                       grid0, spec["model"], space, samples=a.samples, runs=a.runs, seed=a.seed,
+    trials = calibrate(lambda sc, s: build_simulation(sc, load_scenario_city(sc, base_city), seed=s),
+                       grid0, spec, space, samples=a.samples, runs=a.runs, seed=a.seed,
                        until=a.until)
     for t in trials[:5]:
         print(json.dumps({k: (round(v, 3) if isinstance(v, float) else v) for k, v in t.items()}))

@@ -49,7 +49,7 @@ def test_anchor_strength_envelope():
                           "announce_year": 2000, "open_year": 2010})
     assert a.strength(1999) == 0
     assert 0 < a.strength(2005) < a.strength(2010) <= a.mass
-    assert a.strength(2030) == pytest.approx(a.mass)
+    assert a.strength(2060) == pytest.approx(a.mass)
     assert a.meta["capacity"] == 1500  # unknown preset keys land in meta
 
 
@@ -158,3 +158,37 @@ def test_run_scenario_auto_named_dir(tmp_path):
                        animation=False, figures=False, progress=False)
     assert res["out"].parent == tmp_path / "runs"
     assert res["out"].name.startswith("t_") and res["out"].name.endswith("_smoke")
+
+
+@pytest.mark.parametrize("shape", ["linear", "saturating", "logistic"])
+def test_ramp_shapes_monotone(shape):
+    a = Anchor("a", (0, 0), mass=2.0, announce_year=2000, open_year=2005, anticipation=0.1,
+               ramp_years=10, ramp_shape=shape)
+    s = [a.strength(y) for y in np.arange(1999, 2030, 0.5)]
+    assert all(b >= a_ - 1e-12 for a_, b in zip(s, s[1:]))
+    assert a.strength(2005) == pytest.approx(0.2)  # continuous at opening
+    assert a.strength(2015) > 1.8 if shape != "saturating" else a.strength(2015) > 1.85
+    if shape == "logistic":  # slow start
+        assert a.strength(2007) < a.strength(2005) + 0.25 * (a.mass - a.strength(2005))
+
+
+def test_urban_field_suppresses_isolated_villages():
+    from cityca.engine import FACTORS
+    g = small_city()
+    village = np.zeros(g.shape, bool)
+    village[52:54, 52:54] = True
+    g.urbanize(village)
+    f = FACTORS.build({"type": "urban_field", "radius": 6, "ref": 0.3})(g, None)
+    assert f[30, 35] > 3 * f[52, 51]  # city edge ≫ isolated village edge
+
+
+def test_cluster_size_map():
+    g = small_city()
+    sizes = g.derive("cluster_size_map")
+    assert sizes[30, 30] == (g["urban"] > 0).sum()
+    assert sizes[0, 59] == 0
+
+
+def test_station_anchor_does_not_seed():
+    a = Anchor.from_dict({"name": "s", "kind": "station", "position": [0, 0]})
+    assert a.seeds < 0.1 and a.metric == "euclidean"

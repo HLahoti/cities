@@ -1,0 +1,9 @@
+# Major tech parks used as anchors. Coordinates: Nominatim (OSM).
+# Opening years: secondary sources disagree for several parks — see the
+# Bangalore README; treat as approximate.
+name	lat	lon	opened	note
+Bagmane Tech Park	12.97877	77.65885	1998	most sources 1998 (one says 2001)
+Manyata Tech Park	13.04828	77.62110	2001	sources give 2001-2005; grew in phases
+Prestige Tech Park	12.94227	77.69359	2004	ORR Marathahalli-Sarjapur corridor
+RMZ Ecospace	12.92413	77.68108	2006	ORR Bellandur
+Embassy Tech Village	12.93068	77.69141	2008	ORR Devarabeesanahalli (formerly Vrindavan Tech Village)

@@ -4,7 +4,11 @@ Compares Monte Carlo ensembles of several scenario runs with the observed
 (WSF) urban maps: area through time, change-placement accuracy, and growth in
 distance rings around KIA (to isolate the airport effect).
 
-    python3 -P -E tools/assess_bangalore.py runs/<calibrated-sleuth> runs/<calibrated-no-kia> ...
+    python3 -P -E tools/assess_bangalore.py [label=]runs/<run-a> [label=]runs/<run-b> ...
+
+Besides city-wide scores it reports growth in zones that each model fix
+targets: rings around KIA (airport ramp), the rural belt > 3 km from the 2004
+city body (village growth), and metro / tech-park catchments.
 """
 
 from __future__ import annotations
@@ -33,10 +37,22 @@ KIA_LONLAT = (77.7075, 13.1976)
 RINGS_KM = [0, 5, 10, 15, 20, 30]
 
 
-def load_run(d: Path):
+def load_run(arg: str):
+    label, _, path = arg.rpartition("=")
+    d = Path(path)
     s = json.loads((d / "summary.json").read_text())
     z = np.load(d / "ensemble" / "ensemble.npz")
-    return s.get("name") or d.name, z["years"], z["probability"]
+    return label or s.get("name") or d.name, z["years"], z["probability"]
+
+
+def zone_stats(u0, obs, p, zone):
+    """Observed vs expected new cells and FoM (P ≥ 0.5) inside a zone."""
+    obs_new = obs & ~u0 & zone
+    exp_new = float(np.where(u0, 0.0, p)[zone].sum())
+    sim = p >= 0.5
+    return {"observed_new": int(obs_new.sum()), "expected_new": round(exp_new),
+            "ratio": round(exp_new / max(obs_new.sum(), 1), 2),
+            "fom_p50": round(figure_of_merit(u0 & zone, obs & zone, sim & zone), 3)}
 
 
 def main(dirs):
@@ -53,7 +69,7 @@ def main(dirs):
     dx, dy = city.meta["cell_size_xy_m"]
     dist_km = np.hypot((cc - kx) * dx, (rr - ky) * dy) / 1000
 
-    runs = [load_run(Path(d)) for d in dirs]
+    runs = [load_run(d) for d in dirs]
     out = run_dir(city.name, "assessment", ROOT / "runs")
     report = {"runs": [str(d) for d in dirs], "per_year": {}, "kia_rings": {}}
 
@@ -84,6 +100,32 @@ def main(dirs):
         exp_new = np.where(u0, 0.0, prob[i])
         report["kia_rings"][name] = [float(exp_new[(dist_km >= a) & (dist_km < b)].sum())
                                      for a, b in zip(RINGS_KM[:-1], RINGS_KM[1:])]
+
+    # --- zones targeted by each fix (last observed year) ------------------------------
+    from scipy import ndimage
+    lab, n = ndimage.label(u0, structure=np.ones((3, 3), int))
+    main_body = lab == (np.bincount(lab.ravel())[1:].argmax() + 1)
+    d_body_km = ndimage.distance_transform_edt(~main_body) * np.sqrt(dx * dy) / 1000
+    zones = {"fringe (≤3 km of 2004 city)": d_body_km <= 3, "rural (>3 km)": d_body_km > 3}
+    dyn = ROOT / "examples" / "bangalore" / "sources" / "dynamic_anchors.json"
+    if dyn.exists():
+        anc = json.loads(dyn.read_text())
+        st = [a["position"] for a in anc["stations"] if a["open_year"] <= y_last - 2]
+        tp = [a["position"] for a in anc["tech_parks"]]
+
+        def near(points, km):
+            m = np.zeros(city.shape, bool)
+            for x, y in points:
+                m |= np.hypot((cc - x) * dx, (rr - y) * dy) / 1000 <= km
+            return m
+        zones[f"metro ≤1 km ({len(st)} stations open by {y_last - 2:g})"] = near(st, 1.0)
+        zones["tech parks ≤3 km"] = near(tp, 3.0)
+    zones["KIA ≤10 km"] = dist_km < 10
+    obs_last = city.observed[y_last]["urban"] > 0
+    report["zones"] = {}
+    for name, years, prob in runs:
+        i = int(np.argmin(np.abs(years - y_last)))
+        report["zones"][name] = {z: zone_stats(u0, obs_last, prob[i], m) for z, m in zones.items()}
 
     (out / "assessment.json").write_text(json.dumps(report, indent=1))
 
@@ -151,6 +193,12 @@ def main(dirs):
         for r in rows:
             print(f"  {r['year']:.0f}: observed {r['observed_area']:6d}  expected {r['expected_area']:8.0f} "
                   f"({r['area_err_pct']:+5.1f}%)  FoM {r['fom_p50']:.3f}")
+    print(f"zones, {city.year:g}–{y_last:g}: expected/observed new cells (ratio) | FoM P≥0.5")
+    for z in zones:
+        print(f"  {z}")
+        for name in report["zones"]:
+            r = report["zones"][name][z]
+            print(f"    {name:24s} {r['expected_new']:6d}/{r['observed_new']:<6d} ({r['ratio']:4.2f}) | {r['fom_p50']:.3f}")
     print("KIA rings", labels)
     for k, v in report["kia_rings"].items():
         print(f"  {k:20s}", [round(x) for x in v])

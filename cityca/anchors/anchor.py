@@ -9,6 +9,7 @@ potential field Φ that growth models can consume.
 
 from __future__ import annotations
 
+import math
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
@@ -18,8 +19,15 @@ ANCHOR_KINDS: dict[str, dict[str, Any]] = {
     "generic": {},
     "cbd": {"mass": 1.0, "decay": {"type": "power", "scale": 8.0, "beta": 1.5}},
     "subcenter": {"mass": 0.5, "decay": {"type": "exponential", "scale": 10.0}},
-    "station": {"mass": 0.4, "decay": {"type": "exponential", "scale": 5.0},
-                "metric": "travel"},
+    # Metro/rail stations: local (walking-catchment) pull that densifies and
+    # extends the fringe, with little leapfrog seeding of its own.
+    "station": {"mass": 0.25, "decay": {"type": "exponential", "scale": 4.0},
+                "anticipation": 0.3, "ramp_years": 5.0, "ramp_shape": "saturating",
+                "seeds": 0.05},
+    # Office/IT parks: job magnets whose catchment fills in over a decade.
+    "tech_park": {"mass": 0.5, "decay": {"type": "exponential", "scale": 12.0},
+                  "anticipation": 0.2, "ramp_years": 10.0, "ramp_shape": "saturating",
+                  "metric": "travel"},
     "university": {"mass": 0.4, "decay": {"type": "exponential", "scale": 8.0}},
     "port": {"mass": 0.6, "decay": {"type": "dog", "scale": 18.0, "inner": 3.0,
                                     "inner_strength": 0.6}},
@@ -30,8 +38,9 @@ ANCHOR_KINDS: dict[str, dict[str, Any]] = {
     # ``capacity`` (cells) raises the carrying capacity of capacity-based demand laws.
     "airport": {"mass": 1.2, "decay": {"type": "dog", "scale": 25.0, "inner": 7.0,
                                        "inner_strength": 1.8},
-                "footprint_radius": 4.0, "access_road": 3, "anticipation": 0.35,
-                "ramp_years": 8.0, "metric": "travel", "capacity": 1500},
+                "footprint_radius": 4.0, "access_road": 3, "anticipation": 0.05,
+                "ramp_years": 20.0, "ramp_shape": "logistic", "metric": "travel",
+                "capacity": 1500},
 }
 
 
@@ -46,21 +55,41 @@ class Anchor:
     announce_year: float | None = None  # when growth starts anticipating it
     open_year: float | None = None  # when it becomes operational (None = already open)
     anticipation: float = 0.25  # fraction of mass felt between announce and open
-    ramp_years: float = 0.0  # years after opening to reach full mass
+    ramp_years: float = 0.0  # years after opening to (nearly) reach full mass
+    ramp_shape: str = "linear"  # linear | saturating | logistic (see ``maturity``)
+    seeds: float = 1.0  # weight in leapfrog anchor seeding (0 = attraction only)
     footprint_radius: float = 0.0  # cells built/urbanised when it opens
     access_road: int = 0  # road class of a link to the network built on opening (0 = none)
     meta: dict = field(default_factory=dict)
+
+    def maturity(self, years_open: float) -> float:
+        """0→1 build-up after opening.
+
+        * ``linear``: reaches 1 at ``ramp_years``.
+        * ``saturating``: 1 - exp(-3t/T), fast at first (95 % at T).
+        * ``logistic``: slow start, S-curve centred on T/2 (≈98 % at T) — an
+          airport city takes years before development really gathers pace.
+        """
+        T = self.ramp_years
+        if T <= 0 or years_open >= 50 * T:
+            return 1.0
+        t = max(years_open, 0.0)
+        if self.ramp_shape == "linear":
+            return min(1.0, t / T)
+        if self.ramp_shape == "saturating":
+            return 1.0 - math.exp(-3.0 * t / T)
+        if self.ramp_shape == "logistic":
+            k = 8.0 / T
+            lo = 1.0 / (1.0 + math.exp(k * T / 2))
+            return (1.0 / (1.0 + math.exp(-k * (t - T / 2))) - lo) / (1.0 - lo)
+        raise ValueError(f"Unknown ramp_shape '{self.ramp_shape}'")
 
     def strength(self, year: float) -> float:
         """Effective mass at a given year (the temporal envelope)."""
         if self.open_year is None:
             return self.mass
         if year >= self.open_year:
-            if self.ramp_years > 0:
-                f = self.anticipation + (1 - self.anticipation) * min(
-                    1.0, (year - self.open_year) / self.ramp_years)
-            else:
-                f = 1.0
+            f = self.anticipation + (1 - self.anticipation) * self.maturity(year - self.open_year)
             return self.mass * f
         if self.announce_year is not None and year >= self.announce_year:
             span = max(self.open_year - self.announce_year, 1e-9)
