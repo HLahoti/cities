@@ -246,3 +246,84 @@ Infrastructure and anchors add little once that is known.
 **Forecast.** `scenarios/v4_learned_forecast.json` starts from the observed
 2015 map and runs to 2026 with the logistic model, demand of 1,030 cells a
 year (the 2004–2015 trend) and densification.
+
+## v5: learned densification, growth amount and consistent data (2026-10-15)
+
+**#3 Consistent data: GHSL R2023A.** `bangalore_2000_ghsl.city.json` uses
+the same grid, roads and anchors as the WSF city, with its observations taken
+from the JRC Global Human Settlement Layer instead:
+- built-up surface share (`density`) and built volume for 2000, 2005, 2010,
+  2015 and 2020, from one processing chain;
+- 1995 as momentum history;
+- GHS-POP population, plus 2025/2030 projections stored as such.
+
+The urban threshold (0.096) is set so 2015 urban land matches the WSF city.
+Built with `tools/build_bangalore_ghsl.py`; GHS-POP is converted by
+`tools/convert_ghs_pop.py`, run in an isolated `uv` environment because it
+needs `imagecodecs`.
+
+**#1 Learned densification and momentum.**
+- `DensityModel` is a two-part model: will a cell's built share rise in a
+  period, and by how much.
+- *Momentum* features (recent nearby growth, recent density change) come from
+  lag layers.
+- `freeze` keeps the growth model's density inputs at their
+  start-of-forecast values.
+
+**#2 Growth amount.** Fitted growth laws (`demand_fit.select_law`) and
+population scaling (A = c·P^β along GHS-POP) were tested against the
+mean-growth trend.
+
+All results are rolling-origin forecasts (12 runs each), fitted only on data
+up to each origin. Configs are in `validation_v5_*.json`; summarise them with
+`tools/summarize_validation.py`.
+
+### What improved
+
+| Change | Data | Before → after |
+|---|---|---|
+| Momentum features | WSF, all origins, single-sensor targets | Placement FoM 0.325 → **0.339** (short horizon 0.295 → 0.314) |
+| Learned densification (expected, urban cells) | WSF, fair origins 2010/12/15 | Density skill on urban cells +0.085 → **+0.16** |
+| Frozen density inputs with learned densification | GHSL, origins 2005/10/15 | Placement FoM 0.400 (old densify) → **0.482** |
+| Consistent data for the latest interval | 2015 origin | FoM 0.13 (WSF → 2019) → **0.37** (GHSL → 2020) |
+
+Head-to-head on GHSL (2005/2010/2015 → up to 2020):
+
+| Method | Placement FoM | Area error |
+|---|---|---|
+| **learned growth (frozen) + learned density** | **0.482** | 2.6 % |
+| learned growth, no densification | 0.443 | 2.6 % |
+| learned growth + old densify | 0.400 | 2.6 % |
+| SLEUTH re-calibrated with CEM | 0.277 | 12.0 % |
+| proximity | 0.256 | 2.6 % |
+
+### What didn't improve
+
+* **Growth amount.** Neither fitted laws nor population scaling beat the
+  simple mean-growth trend.
+  - *Fitted laws:* with 3–6 noisy points, saturating laws read short-term
+    wiggles as a slowdown. The WSF area error went from 7.5 % to 8.5 %.
+  - *Population scaling:* the fitted β was unstable (about 1.6 on early GHSL,
+    because area grew faster than population). Extrapolated along the
+    population projection, it overshot area by 11–17 % on average and up to
+    +33 %.
+  - *Keep the trend* until there are longer and cleaner area series.
+* **GHSL density.** GHSL's built-up share hardly changes between epochs, so
+  "no change" is hard to beat. Learned densification still scores below it
+  (−0.46), though it is far better than the old WSF-tuned process (−3.3).
+* **Metro.** Volume growth within 1 km of stations open by 2017 was no faster
+  than 1–3 km away at the same distance from the CBD (2010–2020). But GHSL
+  volume changes track footprint changes closely; its yearly volumes appear
+  to come from footprint × a fixed height model, so they can't show vertical
+  growth. Testing the metro properly needs yearly building heights, such as
+  Open Buildings 2.5D Temporal (2016–2023) via Earth Engine.
+
+### Forecast
+
+`scenarios/v5_forecast_2030.json` uses the best configuration:
+- models trained on all GHSL intervals by `tools/train_bangalore_v5.py`;
+- starts from the observed 2020 map and runs to 2030;
+- demand of 1,327 cells a year, the 2000–2020 mean.
+
+It projects 47,721 → about 61,000 urban cells by 2030, mostly fringe infill
+to the north, east and south-east, with densification of existing areas.

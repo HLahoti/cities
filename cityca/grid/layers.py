@@ -47,6 +47,10 @@ _spec(name="urban", dtype="uint8", kind="binary", cmap="Greys",
       description="1 if the cell is developed/urbanised")
 _spec(name="density", dtype="float32", cmap="cityca_density",
       description="Built-up density: share of the cell covered by buildings (0..1)")
+_spec(name="urban_lag", dtype="uint8", kind="binary", cmap="Greys",
+      description="Urban mask one lag period earlier (meta.lag_years), for momentum features")
+_spec(name="density_lag", dtype="float32", cmap="cityca_density",
+      description="Built-up density one lag period earlier, for momentum features")
 _spec(name="urbanized_at", dtype="float32", default=np.nan, cmap="plasma",
       description="Year the cell became urban (NaN if never)")
 
@@ -69,6 +73,8 @@ _spec(name="landuse", dtype="uint8", kind="categorical", cmap="tab10",
       description="Land-use class code (see city metadata for the legend)")
 _spec(name="population", description="Residents per cell", cmap="magma")
 _spec(name="jobs", description="Jobs per cell", cmap="magma")
+_spec(name="built_volume", cmap="magma",
+      description="Built-up volume per unit cell area (m³/m²): footprint × height")
 _spec(name="land_value", description="Relative land value", cmap="cividis")
 _spec(name="zoning", dtype="float32", default=1.0, cmap="RdYlGn",
       description="0..1 planning permissiveness multiplier")

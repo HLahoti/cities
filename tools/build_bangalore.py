@@ -50,6 +50,7 @@ CELL_DEG = CELL_PX * EVO_PX
 START_YEAR = 2004
 EVO_OBSERVED = [2006, 2008, 2010, 2012, 2015]
 URBAN_THRESHOLD = 0.25  # share of built 30 m pixels for a cell to count as urban
+LAG_YEARS = 2  # momentum features look back this far (matches the 2-year observation step)
 
 # Anchors (lat, lon from Nominatim/OSM; see data/raw/nominatim)
 CITY_ANCHORS = [
@@ -364,6 +365,10 @@ def main():
     grid["urban"] = u
     # Built-up density = share of the cell's 30 m pixels that are built (0..1).
     grid["density"] = np.where(water, 0.0, frac[START_YEAR])
+    # Momentum history: the state LAG_YEARS before the start (WSF-Evo is annual).
+    grid["urban_lag"] = urban_by[START_YEAR - LAG_YEARS] & ~water
+    grid["density_lag"] = np.where(water, 0.0, frac[START_YEAR - LAG_YEARS])
+    grid.meta["lag_years"] = LAG_YEARS
     ua = np.full(geo.shape, np.nan, np.float32)
     for y in range(START_YEAR, 1984, -1):  # first year each cell crossed the threshold
         ua[urban_by[y] & u] = y

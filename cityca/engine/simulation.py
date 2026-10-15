@@ -30,6 +30,9 @@ class Simulation:
         self.grid = grid
         self.model = model
         self.processes = list(processes or [])
+        if "urban_lag" in grid.layers and not any(p.name == "track_lags" for p in self.processes):
+            from .processes import TrackLags
+            self.processes.append(TrackLags())  # keep momentum layers current
         self.field = field or AnchorField()
         # Events dated at or before the start year are history: already in the grid.
         self.events = sorted((e for e in (events or []) if e.year > grid.year), key=lambda e: e.year)

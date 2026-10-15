@@ -1,0 +1,189 @@
+{
+ "description": "v5 ablation on the WSF city: each improvement added in turn to the v4 learned-growth setup.",
+ "scenario": "scenarios/calibrated_v3_density.json",
+ "origins": [
+  2006,
+  2008,
+  2010,
+  2012,
+  2015
+ ],
+ "runs": 12,
+ "methods": {
+  "v4 (no momentum)": {
+   "type": "learned",
+   "learner": "logistic",
+   "params": {
+    "C": 1.0
+   },
+   "features": [
+    {
+     "layer": "urban_density",
+     "params": {
+      "radius": 1.5
+     },
+     "name": "urban_share_r1.5"
+    },
+    {
+     "layer": "urban_density",
+     "params": {
+      "radius": 4,
+      "decay": {
+       "type": "gaussian",
+       "scale": 2
+      }
+     },
+     "name": "urban_share_r4"
+    },
+    {
+     "layer": "urban_density",
+     "params": {
+      "radius": 12,
+      "decay": {
+       "type": "gaussian",
+       "scale": 6
+      }
+     },
+     "name": "urban_share_r12"
+    },
+    {
+     "layer": "urban_density",
+     "params": {
+      "radius": 30,
+      "decay": {
+       "type": "gaussian",
+       "scale": 15
+      }
+     },
+     "name": "urban_share_r30"
+    },
+    {
+     "layer": "urban_distance",
+     "transform": "log1p"
+    },
+    {
+     "layer": "density",
+     "name": "own_built_share"
+    },
+    {
+     "layer": "density",
+     "smooth": 2,
+     "name": "built_share_s2"
+    },
+    {
+     "layer": "road_distance",
+     "params": {
+      "min_class": 1
+     },
+     "transform": "log1p",
+     "name": "road_dist_any"
+    },
+    {
+     "layer": "road_distance",
+     "params": {
+      "min_class": 2
+     },
+     "transform": "log1p",
+     "name": "road_dist_arterial"
+    },
+    {
+     "layer": "road_distance",
+     "params": {
+      "min_class": 3
+     },
+     "transform": "log1p",
+     "name": "road_dist_highway"
+    },
+    {
+     "layer": "rail_distance",
+     "transform": "log1p"
+    },
+    {
+     "layer": "water_distance",
+     "transform": "log1p"
+    },
+    {
+     "layer": "center_distance",
+     "transform": "log1p"
+    },
+    {
+     "layer": "anchor_potential"
+    },
+    {
+     "layer": "slope"
+    },
+    {
+     "layer": "elevation"
+    },
+    {
+     "layer": "excluded"
+    }
+   ]
+  },
+  "+momentum": {
+   "type": "learned",
+   "learner": "logistic",
+   "params": {
+    "C": 1.0
+   }
+  },
+  "+learned density": {
+   "type": "learned",
+   "learner": "logistic",
+   "params": {
+    "C": 1.0
+   },
+   "processes": [
+    {
+     "type": "learned_densify",
+     "mode": "stochastic",
+     "train": {
+      "classifier": "gbm",
+      "regressor": "gbm"
+     }
+    }
+   ]
+  },
+  "+fitted demand": {
+   "type": "learned",
+   "learner": "logistic",
+   "params": {
+    "C": 1.0
+   },
+   "processes": [
+    {
+     "type": "learned_densify",
+     "mode": "stochastic",
+     "train": {
+      "classifier": "gbm",
+      "regressor": "gbm"
+     }
+    }
+   ],
+   "demand": {
+    "type": "fit",
+    "law": "auto"
+   }
+  },
+  "+population demand": {
+   "type": "learned",
+   "learner": "logistic",
+   "params": {
+    "C": 1.0
+   },
+   "processes": [
+    {
+     "type": "learned_densify",
+     "mode": "stochastic",
+     "train": {
+      "classifier": "gbm",
+      "regressor": "gbm"
+     }
+    }
+   ],
+   "demand": {
+    "type": "population"
+   }
+  }
+ }
+}

@@ -30,6 +30,16 @@ Method types:
   origin (simulating from the start year), then forecasts from the origin
   state with the top ``elites`` parameter sets.
 * ``fixed`` — the scenario's model as-is (beware: may use information after o).
+
+Per-method options (``potential`` / ``learned``):
+
+* ``"demand"`` — how much grows each year, fitted on observed areas ≤ origin:
+  ``{"type": "trend"}`` (default, mean growth), ``{"type": "fit", "law":
+  "auto" | "linear" | "exponential" | "logistic" | "allometric"}``, or
+  ``{"type": "population"}`` (A = c·P^β along the city's population series).
+* ``"processes"`` — replaces the scenario's processes. ``{"type":
+  "learned_densify", "train": {...}}`` trains a DensityModel on density
+  intervals ending ≤ origin; ``[]`` means no densification.
 """
 
 from __future__ import annotations
@@ -53,6 +63,51 @@ def _trend_demand(base, origin) -> float:
     return max(a1 - a0, 0.0) / max(origin - base.year, 1e-9)
 
 
+def _area_history(base, origin):
+    ys = [float(base.year)] + sorted(y for y in base.observed if y <= origin and "urban" in base.observed[y])
+    areas = [float((base["urban"] > 0).sum())] + [float((base.observed[y]["urban"] > 0).sum()) for y in ys[1:]]
+    return ys, areas
+
+
+def make_demand(cfg, base, origin, last_year) -> tuple[dict, dict]:
+    """Demand spec (and fit info) using only observations ≤ origin."""
+    from .engine.demand_fit import law_to_demand, population_demand, select_law, fit_law
+    cfg = cfg or {"type": "trend"}
+    if cfg["type"] == "trend":
+        rate = _trend_demand(base, origin)
+        return {"type": "constant", "cells": rate}, {"demand": "trend", "rate": rate}
+    ys, areas = _area_history(base, origin)
+    if cfg["type"] == "fit":
+        law = cfg.get("law", "auto")
+        fit = select_law(ys, areas) if law == "auto" else fit_law(law, ys, areas)
+        return law_to_demand(fit), {"demand": f"fit:{fit['law']}", "params": fit["params"]}
+    if cfg["type"] == "population":
+        ps = base.meta["population_series"]
+        spec = population_demand(ps["years"], ps["population"], ys, areas, [last_year])
+        return spec, {"demand": "population", **spec["_fit"]}
+    raise ValueError(f"Unknown demand type '{cfg['type']}'")
+
+
+def make_processes(cfg, spec, base, origin, states, out, name, log):
+    """Processes for a forecast; trains learned densification when asked."""
+    if cfg is None:
+        return copy.deepcopy(spec.get("processes", []))
+    from .learn.densify import train_density_model
+    procs = []
+    for p in cfg:
+        p = copy.deepcopy(p)
+        train = p.pop("train", None)
+        if p["type"] == "learned_densify" and train is not None:
+            dm, rep = train_density_model(spec, base, origin, states=states, **train)
+            path = out / "models" / f"{name}_density_{origin:g}.joblib"
+            dm.save(path)
+            p["model_file"] = str(path.resolve())
+            log({"density_model": {k: rep[k] for k in ("pairs", "period", "train_auc") if k in rep},
+                 "density_holdout": rep.get("holdout_expected")})
+        procs.append(p)
+    return procs
+
+
 def _forecast_spec(spec, model, origin, last_year):
     f = copy.deepcopy(spec)
     f["model"] = model
@@ -64,8 +119,16 @@ def _forecast_spec(spec, model, origin, last_year):
 
 def method_forecast_spec(name, mcfg, spec, base, origin, last_year, states, out, workers, log):
     """Fit a method on information ≤ origin; return the scenario spec to forecast with."""
+    f, info = _method_forecast_spec(name, mcfg, spec, base, origin, last_year, states, out,
+                                    workers, log)
+    f["processes"] = make_processes(mcfg.get("processes"), spec, base, origin, states, out, name, log)
+    return f, info
+
+
+def _method_forecast_spec(name, mcfg, spec, base, origin, last_year, states, out, workers, log):
     kind = mcfg["type"]
-    demand = {"type": "constant", "cells": _trend_demand(base, origin)}
+    demand, dinfo = make_demand(mcfg.get("demand"), base, origin, last_year)
+    log({"demand": dinfo})
     alloc = mcfg.get("allocator", {"type": "roulette", "gamma": 2.0})
     if kind == "potential":
         model = {"type": "potential", "factors": mcfg["factors"], "demand": demand,
@@ -78,7 +141,8 @@ def method_forecast_spec(name, mcfg, spec, base, origin, last_year, states, out,
         path = out / "models" / f"{name}_{origin:g}.joblib"
         lm.save(path)
         factors = [{"type": "learned", "model_file": str(path.resolve()),
-                    "power": mcfg.get("power", 1.0)}] + mcfg.get("extra_factors", [])
+                    "power": mcfg.get("power", 1.0), "freeze": mcfg.get("freeze")}] + \
+            mcfg.get("extra_factors", [])
         model = {"type": "potential", "factors": factors, "demand": demand, "allocator": alloc}
         log({"train": rep.get("train"), "holdout": rep.get("holdout")})
         return _forecast_spec(spec, model, origin, last_year), {"train_auc": rep["train"]["roc_auc"]}
@@ -120,6 +184,10 @@ def score_forecast(ens, state0, base, origin) -> list[dict]:
             e = density_errors(obs["density"], ens.density[i], both, reference=d0)
             row["density_skill"] = e.get("skill")
             row["density_mae"] = e["mae"]
+            # All built-up land, including partly built non-urban cells.
+            land = (state0["water"] == 0) & ((obs["density"] > 0) | (ens.density[i] > 0) | (d0 > 0))
+            row["density_skill_all"] = density_errors(obs["density"], ens.density[i], land,
+                                                      reference=d0).get("skill")
         rows.append(row)
     return rows
 

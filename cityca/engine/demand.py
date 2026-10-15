@@ -106,9 +106,10 @@ class AllometricDemand(Demand):
 class SeriesDemand(Demand):
     """Explicit cells-per-year from data, linearly interpolated by year."""
 
-    def __init__(self, years: list, cells: list, **kw):
+    def __init__(self, years: list, cells: list, _fit: dict | None = None, **kw):
         super().__init__(**kw)
         self.years, self.cells = list(years), list(cells)
+        self.fit_info = _fit  # provenance when produced by demand_fit
 
     def rate(self, area, grid, ctx):
         return float(np.interp(ctx.year, self.years, self.cells))

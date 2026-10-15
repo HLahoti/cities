@@ -35,7 +35,30 @@
       "Observed 2019 comes from WSF2019 (Sentinel/Landsat, 10 m) while earlier years come from WSF-Evolution (Landsat, 30 m); 2019 uses a ratio-harmonised threshold and 2019 \u2287 2015 \u2014 lowest confidence.",
       "Lakes and protected land are present-day extents.",
       "density = share of built 30 m WSF-Evo pixels per cell (horizontal built-up surface, not floor area or height); observed density is only given for WSF-Evo years (2006-2015), not 2019."
-    ]
+    ],
+    "lag_years": 2,
+    "population_series": {
+      "years": [
+        2000,
+        2005,
+        2010,
+        2015,
+        2020,
+        2025,
+        2030
+      ],
+      "population": [
+        7419002.6831746,
+        8845854.893629456,
+        10564527.33377747,
+        12553389.170153517,
+        14809139.290434971,
+        16650542.205103604,
+        18278082.61944935
+      ],
+      "projected_from": 2025,
+      "source": "GHS-POP R2023A 30ss, summed over the model grid"
+    }
   },
   "layers": {
     "urban": {
@@ -69,6 +92,14 @@
     "density": {
       "source": "npz",
       "key": "density"
+    },
+    "urban_lag": {
+      "source": "npz",
+      "key": "urban_lag"
+    },
+    "density_lag": {
+      "source": "npz",
+      "key": "density_lag"
     }
   },
   "features": [],

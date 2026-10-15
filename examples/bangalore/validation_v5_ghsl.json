@@ -1,0 +1,180 @@
+{
+ "description": "v5 on the GHSL city (one consistent source 2000-2020).",
+ "scenario": "scenarios/ghsl_base.json",
+ "origins": [
+  2005,
+  2010,
+  2015
+ ],
+ "runs": 12,
+ "methods": {
+  "proximity": {
+   "type": "potential",
+   "factors": [
+    {
+     "type": "neighborhood",
+     "radius": 2,
+     "floor": 0.02
+    },
+    {
+     "type": "excluded"
+    },
+    {
+     "type": "noise",
+     "alpha": 0.5
+    }
+   ],
+   "processes": [
+    {
+     "type": "learned_densify",
+     "mode": "stochastic",
+     "train": {
+      "classifier": "gbm",
+      "regressor": "gbm"
+     }
+    }
+   ]
+  },
+  "sleuth-cem": {
+   "type": "calibrated",
+   "search": "cem",
+   "iterations": 5,
+   "population": 24,
+   "runs": 3,
+   "elites": 5,
+   "processes": [
+    {
+     "type": "learned_densify",
+     "mode": "stochastic",
+     "train": {
+      "classifier": "gbm",
+      "regressor": "gbm"
+     }
+    }
+   ],
+   "space": {
+    "diffusion": [
+     1,
+     25
+    ],
+    "breed": [
+     1,
+     50
+    ],
+    "spread": [
+     2,
+     50
+    ],
+    "slope_resistance": [
+     5,
+     80
+    ],
+    "road_gravity": [
+     5,
+     90
+    ],
+    "anchor_seeding": [
+     0,
+     60
+    ],
+    "model.modifiers.0.gain": [
+     0,
+     5
+    ],
+    "anchors.0.mass": [
+     0,
+     1.5
+    ],
+    "anchors.0.ramp_years": [
+     8,
+     30
+    ],
+    "model.edge_modifiers.0.ref": [
+     0.05,
+     0.6
+    ],
+    "field.kind_weights.station": [
+     0,
+     3
+    ],
+    "field.kind_weights.tech_park": [
+     0,
+     3
+    ]
+   }
+  },
+  "learned, no densify": {
+   "type": "learned",
+   "learner": "logistic",
+   "params": {
+    "C": 1.0
+   },
+   "processes": []
+  },
+  "learned + old densify": {
+   "type": "learned",
+   "learner": "logistic",
+   "params": {
+    "C": 1.0
+   }
+  },
+  "learned + learned density": {
+   "type": "learned",
+   "learner": "logistic",
+   "params": {
+    "C": 1.0
+   },
+   "processes": [
+    {
+     "type": "learned_densify",
+     "mode": "stochastic",
+     "train": {
+      "classifier": "gbm",
+      "regressor": "gbm"
+     }
+    }
+   ]
+  },
+  "+fitted demand": {
+   "type": "learned",
+   "learner": "logistic",
+   "params": {
+    "C": 1.0
+   },
+   "processes": [
+    {
+     "type": "learned_densify",
+     "mode": "stochastic",
+     "train": {
+      "classifier": "gbm",
+      "regressor": "gbm"
+     }
+    }
+   ],
+   "demand": {
+    "type": "fit",
+    "law": "auto"
+   }
+  },
+  "+population demand": {
+   "type": "learned",
+   "learner": "logistic",
+   "params": {
+    "C": 1.0
+   },
+   "processes": [
+    {
+     "type": "learned_densify",
+     "mode": "stochastic",
+     "train": {
+      "classifier": "gbm",
+      "regressor": "gbm"
+     }
+    }
+   ],
+   "demand": {
+    "type": "population"
+   }
+  }
+ }
+}

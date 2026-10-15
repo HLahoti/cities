@@ -1,0 +1,325 @@
+{
+  "format": "cityca/1",
+  "name": "Bangalore (GHSL)",
+  "year": 2000.0,
+  "grid": {
+    "height": 408,
+    "width": 408,
+    "cell_size": 147.6,
+    "units": "cells"
+  },
+  "meta": {
+    "description": "Bengaluru 2000-2020 on GHSL R2023A (consistent built-up time series)",
+    "georef": {
+      "crs": "EPSG:4326",
+      "west": 77.35006635981028,
+      "north": 13.300096770559989,
+      "cell_deg": 0.0013474729261792823,
+      "rows": 408,
+      "cols": 408,
+      "note": "cell (r, c) spans lon west+c*cell_deg.., lat north-r*cell_deg.."
+    },
+    "urban_threshold": 0.09586290787748258,
+    "cell_size_xy_m": [
+      146.1,
+      149.0
+    ],
+    "sources": {
+      "urban": "DLR WSF Evolution v1 (1985-2015) & WSF 2019 v1, CC BY 4.0",
+      "roads/rail/water/protected": "OpenStreetMap contributors, ODbL (present-day, filtered to 2004)",
+      "elevation": "AWS Terrain Tiles (SRTM-derived)",
+      "urban/density/volume": "JRC GHS-BUILT-S / GHS-BUILT-V R2023A, 3 arcsec (CC BY 4.0), area-weighted to the model grid",
+      "population": "JRC GHS-POP R2023A 30 arcsec (CC BY 4.0)"
+    },
+    "caveats": [
+      "OSM-derived roads are the filtered 2004 network; a few roads built 2000-2004 are present from the 2000 start.",
+      "GHSL density = built-up surface share (horizontal); built_volume adds height.",
+      "GHS-POP 2025/2030 are projections, not observations.",
+      "urban threshold chosen to match the WSF city's 2015 urban extent."
+    ],
+    "lag_years": 5,
+    "population_series": {
+      "years": [
+        2000,
+        2005,
+        2010,
+        2015,
+        2020,
+        2025,
+        2030
+      ],
+      "population": [
+        7419002.6831746,
+        8845854.893629456,
+        10564527.33377747,
+        12553389.170153517,
+        14809139.290434971,
+        16650542.205103604,
+        18278082.61944935
+      ],
+      "projected_from": 2025,
+      "source": "GHS-POP R2023A 30ss, summed over the model grid"
+    }
+  },
+  "layers": {
+    "urban": {
+      "source": "npz",
+      "key": "urban"
+    },
+    "urbanized_at": {
+      "source": "npz",
+      "key": "urbanized_at"
+    },
+    "elevation": {
+      "source": "npz",
+      "key": "elevation"
+    },
+    "water": {
+      "source": "npz",
+      "key": "water"
+    },
+    "excluded": {
+      "source": "npz",
+      "key": "excluded"
+    },
+    "roads": {
+      "source": "npz",
+      "key": "roads"
+    },
+    "rail": {
+      "source": "npz",
+      "key": "rail"
+    },
+    "density": {
+      "source": "npz",
+      "key": "density"
+    },
+    "urban_lag": {
+      "source": "npz",
+      "key": "urban_lag"
+    },
+    "density_lag": {
+      "source": "npz",
+      "key": "density_lag"
+    },
+    "built_volume": {
+      "source": "npz",
+      "key": "built_volume"
+    },
+    "population": {
+      "source": "npz",
+      "key": "population"
+    }
+  },
+  "features": [],
+  "anchors": [
+    {
+      "name": "CBD",
+      "position": [
+        177.56,
+        239.13
+      ],
+      "kind": "cbd",
+      "mass": 1.0,
+      "decay": {
+        "type": "power",
+        "scale": 8.0,
+        "beta": 1.5
+      },
+      "metric": "euclidean",
+      "announce_year": null,
+      "open_year": null,
+      "anticipation": 0.25,
+      "ramp_years": 0.0,
+      "ramp_shape": "linear",
+      "seeds": 1.0,
+      "footprint_radius": 0.0,
+      "access_road": 0,
+      "meta": {}
+    },
+    {
+      "name": "HAL Airport",
+      "position": [
+        237.38,
+        258.2
+      ],
+      "kind": "airport",
+      "mass": 1.2,
+      "decay": {
+        "type": "dog",
+        "scale": 25.0,
+        "inner": 7.0,
+        "inner_strength": 1.8
+      },
+      "metric": "travel",
+      "announce_year": null,
+      "open_year": null,
+      "anticipation": 0.05,
+      "ramp_years": 20.0,
+      "ramp_shape": "logistic",
+      "seeds": 1.0,
+      "footprint_radius": 0,
+      "access_road": 0,
+      "meta": {
+        "capacity": 1500
+      }
+    },
+    {
+      "name": "Electronic City",
+      "position": [
+        233.22,
+        333.75
+      ],
+      "kind": "subcenter",
+      "mass": 0.6,
+      "decay": {
+        "type": "exponential",
+        "scale": 10.0
+      },
+      "metric": "euclidean",
+      "announce_year": null,
+      "open_year": null,
+      "anticipation": 0.25,
+      "ramp_years": 0.0,
+      "ramp_shape": "linear",
+      "seeds": 1.0,
+      "footprint_radius": 0.0,
+      "access_road": 0,
+      "meta": {}
+    },
+    {
+      "name": "ITPL Whitefield",
+      "position": [
+        286.58,
+        231.34
+      ],
+      "kind": "subcenter",
+      "mass": 0.5,
+      "decay": {
+        "type": "exponential",
+        "scale": 10.0
+      },
+      "metric": "euclidean",
+      "announce_year": null,
+      "open_year": null,
+      "anticipation": 0.25,
+      "ramp_years": 0.0,
+      "ramp_shape": "linear",
+      "seeds": 1.0,
+      "footprint_radius": 0.0,
+      "access_road": 0,
+      "meta": {}
+    },
+    {
+      "name": "Peenya",
+      "position": [
+        114.11,
+        210.34
+      ],
+      "kind": "industrial",
+      "mass": 0.5,
+      "decay": {
+        "type": "dog",
+        "scale": 14.0,
+        "inner": 2.5,
+        "inner_strength": 0.5
+      },
+      "metric": "euclidean",
+      "announce_year": null,
+      "open_year": null,
+      "anticipation": 0.25,
+      "ramp_years": 0.0,
+      "ramp_shape": "linear",
+      "seeds": 1.0,
+      "footprint_radius": 0.0,
+      "access_road": 0,
+      "meta": {}
+    }
+  ],
+  "observed": [
+    {
+      "year": 2005.0,
+      "layers": {
+        "urban": {
+          "source": "npz",
+          "key": "obs_2005_urban"
+        },
+        "density": {
+          "source": "npz",
+          "key": "obs_2005_density"
+        },
+        "built_volume": {
+          "source": "npz",
+          "key": "obs_2005_built_volume"
+        },
+        "population": {
+          "source": "npz",
+          "key": "obs_2005_population"
+        }
+      }
+    },
+    {
+      "year": 2010.0,
+      "layers": {
+        "urban": {
+          "source": "npz",
+          "key": "obs_2010_urban"
+        },
+        "density": {
+          "source": "npz",
+          "key": "obs_2010_density"
+        },
+        "built_volume": {
+          "source": "npz",
+          "key": "obs_2010_built_volume"
+        },
+        "population": {
+          "source": "npz",
+          "key": "obs_2010_population"
+        }
+      }
+    },
+    {
+      "year": 2015.0,
+      "layers": {
+        "urban": {
+          "source": "npz",
+          "key": "obs_2015_urban"
+        },
+        "density": {
+          "source": "npz",
+          "key": "obs_2015_density"
+        },
+        "built_volume": {
+          "source": "npz",
+          "key": "obs_2015_built_volume"
+        },
+        "population": {
+          "source": "npz",
+          "key": "obs_2015_population"
+        }
+      }
+    },
+    {
+      "year": 2020.0,
+      "layers": {
+        "urban": {
+          "source": "npz",
+          "key": "obs_2020_urban"
+        },
+        "density": {
+          "source": "npz",
+          "key": "obs_2020_density"
+        },
+        "built_volume": {
+          "source": "npz",
+          "key": "obs_2020_built_volume"
+        },
+        "population": {
+          "source": "npz",
+          "key": "obs_2020_population"
+        }
+      }
+    }
+  ]
+}

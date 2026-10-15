@@ -1,0 +1,81 @@
+{
+ "description": "Densification variants on fair origins (old densify params were fitted on 2006-2012).",
+ "scenario": "scenarios/calibrated_v3_density.json",
+ "origins": [
+  2010,
+  2012,
+  2015
+ ],
+ "runs": 12,
+ "methods": {
+  "old densify": {
+   "type": "learned",
+   "learner": "logistic",
+   "params": {
+    "C": 1.0
+   }
+  },
+  "learned, stochastic, all": {
+   "type": "learned",
+   "learner": "logistic",
+   "params": {
+    "C": 1.0
+   },
+   "processes": [
+    {
+     "type": "learned_densify",
+     "mode": "stochastic",
+     "nonurban": true,
+     "train": {
+      "classifier": "gbm",
+      "regressor": "gbm"
+     }
+    }
+   ]
+  },
+  "learned, expected, all": {
+   "type": "learned",
+   "learner": "logistic",
+   "params": {
+    "C": 1.0
+   },
+   "processes": [
+    {
+     "type": "learned_densify",
+     "mode": "expected",
+     "nonurban": true,
+     "train": {
+      "classifier": "gbm",
+      "regressor": "gbm"
+     }
+    }
+   ]
+  },
+  "learned, expected, urban only": {
+   "type": "learned",
+   "learner": "logistic",
+   "params": {
+    "C": 1.0
+   },
+   "processes": [
+    {
+     "type": "learned_densify",
+     "mode": "expected",
+     "nonurban": false,
+     "train": {
+      "classifier": "gbm",
+      "regressor": "gbm"
+     }
+    }
+   ]
+  },
+  "no densification": {
+   "type": "learned",
+   "learner": "logistic",
+   "params": {
+    "C": 1.0
+   },
+   "processes": []
+  }
+ }
+}

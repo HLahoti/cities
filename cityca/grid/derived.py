@@ -122,6 +122,24 @@ def urban_density(grid, radius: float = 3.0, decay: str | dict | None = None):
     return kernels.convolve(grid["urban"], k, normalize=True).astype(np.float32)
 
 
+@derived("recent_growth", ["urban", "urban_lag"])
+def recent_growth(grid, sigma: float = 4.0):
+    """Smoothed share of cells that became urban during the last lag period (momentum)."""
+    if "urban_lag" not in grid.layers:
+        return np.zeros(grid.shape, np.float32)
+    new = (grid["urban"] > 0) & (grid["urban_lag"] == 0)
+    return ndimage.gaussian_filter(new.astype(np.float32), sigma) if sigma > 0 else new.astype(np.float32)
+
+
+@derived("density_change", ["density", "density_lag"])
+def density_change(grid, sigma: float = 0.0):
+    """Change in built-up density over the last lag period (optionally smoothed)."""
+    if "density_lag" not in grid.layers or "density" not in grid.layers:
+        return np.zeros(grid.shape, np.float32)
+    dd = (grid["density"] - grid["density_lag"]).astype(np.float32)
+    return ndimage.gaussian_filter(dd, sigma) if sigma > 0 else dd
+
+
 @derived("cluster_size_map", ["urban"])
 def cluster_size_map(grid):
     """Each urban cell labelled with the size (cells) of its 8-connected cluster."""

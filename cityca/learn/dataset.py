@@ -49,8 +49,29 @@ def observed_state(spec: dict, base_grid, year: float):
             d = grid["density"]
             d[u & (d < 0.25)] = 0.25  # newly urban cells without a density observation
             grid.touch("density")
+    _set_lags(grid, base_grid, year)
     grid["anchor_potential"] = AnchorField(**spec.get("field", {})).compute(grid)
     return grid
+
+
+def _set_lags(grid, base_grid, year):
+    """Lag layers = the latest observed (or start) state at least ~lag_years earlier."""
+    lag = base_grid.meta.get("lag_years")
+    if not lag or year == base_grid.year:
+        return  # the start state carries its own lag layers (if any)
+    known = {float(base_grid.year): (base_grid["urban"], base_grid.layers.get("density"))}
+    for y, o in base_grid.observed.items():
+        known[float(y)] = (o["urban"], o.get("density"))
+    earlier = sorted(y for y in known if y <= year - lag + 1e-9) or \
+        sorted(y for y in known if y < year)
+    if not earlier:
+        return
+    u, d = known[earlier[-1]]
+    grid["urban_lag"] = u > 0
+    if d is not None:
+        grid["density_lag"] = d
+    elif "density" in grid.layers:
+        grid["density_lag"] = grid["density"]
 
 
 def transitions(states: dict, features, pairs, neg_ratio: float = 6.0, seed: int = 0):

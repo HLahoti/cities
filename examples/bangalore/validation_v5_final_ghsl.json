@@ -1,0 +1,60 @@
+{
+ "description": "v5 final head-to-head on the GHSL city.",
+ "scenario": "scenarios/ghsl_base.json",
+ "origins": [
+  2005,
+  2010,
+  2015
+ ],
+ "runs": 12,
+ "methods": {
+  "learned, no densify": {
+   "type": "learned",
+   "learner": "logistic",
+   "params": {
+    "C": 1.0
+   },
+   "processes": []
+  },
+  "learned + learned density": {
+   "type": "learned",
+   "learner": "logistic",
+   "params": {
+    "C": 1.0
+   },
+   "processes": [
+    {
+     "type": "learned_densify",
+     "mode": "expected",
+     "nonurban": false,
+     "train": {
+      "classifier": "gbm",
+      "regressor": "gbm"
+     }
+    }
+   ]
+  },
+  "learned (frozen) + learned density": {
+   "type": "learned",
+   "learner": "logistic",
+   "params": {
+    "C": 1.0
+   },
+   "processes": [
+    {
+     "type": "learned_densify",
+     "mode": "expected",
+     "nonurban": false,
+     "train": {
+      "classifier": "gbm",
+      "regressor": "gbm"
+     }
+    }
+   ],
+   "freeze": [
+    "density",
+    "density_change"
+   ]
+  }
+ }
+}

@@ -254,16 +254,30 @@ class LearnedFactor(Factor):
     name = "learned"
     _cache: dict = {}
 
-    def __init__(self, model_file: str, power: float = 1.0, **kw):
+    def __init__(self, model_file: str, power: float = 1.0, freeze: list | None = None, **kw):
         super().__init__(**kw)
+        # Layers whose features stay at their start-of-forecast values (e.g. ["density",
+        # "density_change"]): the model was trained on features measured at the start
+        # of each interval, so letting a densification process rewrite them shifts the
+        # inputs away from what the model learned.
+        self.freeze = list(freeze or [])
+        self._frozen = None
         self.model_file, self.power = str(model_file), power
-        if self.model_file not in self._cache:
+        import os
+        key = (self.model_file, os.path.getmtime(self.model_file))  # reload if the file changes
+        if key not in self._cache:
             from ..learn.learners import LearnedModel
-            self._cache[self.model_file] = LearnedModel.load(self.model_file)
-        self.model = self._cache[self.model_file]
+            self._cache[key] = LearnedModel.load(self.model_file)
+        self.model = self._cache[key]
 
     def __call__(self, grid, ctx):
-        p = self.model.predict_grid(grid)
+        frozen = None
+        if self.freeze:
+            if self._frozen is None or self._frozen[0] != id(grid):
+                cols = [i for i, sp in enumerate(self.model.features.specs) if sp["layer"] in self.freeze]
+                self._frozen = (id(grid), cols, self.model.features.matrix(grid)[..., cols].copy())
+            frozen = (self._frozen[1], self._frozen[2])
+        p = self.model.predict_grid(grid, frozen)
         return p ** self.power if self.power != 1 else p
 
 

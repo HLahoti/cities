@@ -322,3 +322,115 @@ def test_rolling_origin_smoke(tmp_path):
     assert {r["method"] for r in rows} == {"proximity", "learned"}
     assert {r["horizon"] for r in rows} == {2.0, 4.0}
     assert all(0 <= r["fom"] <= 1 for r in rows)
+
+
+# --- v5: demand fitting, learned densification, lags, resampling ---------------------------
+def test_fit_law_recovers_parameters():
+    from cityca.engine.demand_fit import fit_law, select_law, simulate_law
+    years = [2000, 2003, 2006, 2009, 2012]
+    areas = simulate_law("logistic", [0.12, 5000], 1000, 2000, years)
+    areas[0] = 1000
+    f = fit_law("logistic", years, areas)
+    assert abs(f["params"][1] - 5000) / 5000 < 0.05
+    lin = simulate_law("linear", [50.0], 1000, 2000, years)
+    assert select_law(years, lin)["law"] == "linear"
+
+
+def test_population_scaling_and_demand():
+    from cityca.engine.demand_fit import fit_population_scaling, population_demand
+    py, pop = [2000, 2010, 2020, 2030], [1e6, 2e6, 4e6, 6e6]
+    ys = [2000, 2010, 2020]
+    areas = [100 * (p / 1e6) ** 0.8 for p in pop[:3]]
+    fit = fit_population_scaling(py, pop, ys, areas)
+    assert abs(fit["beta"] - 0.8) < 1e-6
+    spec = population_demand(py, pop, ys, areas, [2030])
+    assert spec["type"] == "series" and len(spec["cells"]) == 10 and min(spec["cells"]) > 0
+    from cityca.engine import DEMANDS
+    DEMANDS.build(spec)  # provenance key is accepted
+
+
+def test_overlap_resampler_conserves_totals():
+    sys_path_tools()
+    from build_bangalore_ghsl import overlap_matrix
+    cells = np.array([0.0, 0.25, 0.5, 0.75, 1.0])
+    px = np.linspace(-0.1, 1.1, 13)
+    w = overlap_matrix(cells, px)
+    assert np.allclose(w.sum(1), 0.25)  # each cell fully covered
+    assert np.allclose(w @ np.full(12, 0.7) / w.sum(1), 0.7)  # uniform field stays uniform
+    vals = np.arange(12.0)  # pixel k spans [-0.1 + 0.1k, 0.1k]
+    # cell [0, 0.25) = pixel 1 (0.1) + pixel 2 (0.1) + half of pixel 3 (0.05)
+    assert np.isclose((w @ vals)[0] / 0.25, (1 * 0.1 + 2 * 0.1 + 3 * 0.05) / 0.25)
+
+
+def sys_path_tools():
+    import sys
+    from pathlib import Path
+    p = str(Path(__file__).resolve().parents[1] / "tools")
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
+
+def test_track_lags_follow_the_simulation():
+    g = small_city()
+    g["urban_lag"] = g["urban"]
+    g["density_lag"] = g["urban"] * 0.5
+    g["density"] = g["urban"] * 0.5
+    g.meta["lag_years"] = 2
+    sim = Simulation(g, MODELS.build({"type": "potential", "allocator": "top_n",
+                                      "demand": {"type": "constant", "cells": 10}}), seed=0)
+    assert any(p.name == "track_lags" for p in sim.processes)  # added automatically
+    sim.run(steps=4)
+    u_after_2 = sim.history.frames[2].layers["urban"]
+    assert (g["urban_lag"] == u_after_2).all()  # lag = state two years ago
+    assert g.derive("recent_growth", sigma=0).sum() == 20
+
+
+def test_learned_densify_process(tmp_path):
+    from cityca.learn import train_density_model
+    g = city_with_history()
+    dm, rep = train_density_model({}, g, 2006, classifier="logistic", regressor="linear")
+    assert rep["period"] == 2.0 and 0 < rep["event_rate"] <= 1
+    path = dm.save(tmp_path / "d.joblib")
+    for mode, nonurban in (("expected", True), ("stochastic", False)):
+        h = g.copy()
+        sim = Simulation(h, MODELS.build({"type": "none"}), seed=0,
+                         processes=build_processes_([{"type": "learned_densify", "model_file": str(path),
+                                                      "mode": mode, "nonurban": nonurban}]))
+        d0 = h["density"].copy()
+        sim.run(steps=3)
+        assert (h["density"] >= d0 - 1e-9).all() and h["density"].max() <= 1.0
+        nonurban_cells = h["urban"] == 0
+        assert (h["density"][nonurban_cells] <= np.maximum(0.24, d0[nonurban_cells]) + 1e-9).all()
+        if not nonurban:
+            assert np.allclose(h["density"][nonurban_cells], d0[nonurban_cells])
+
+
+def build_processes_(specs):
+    from cityca.engine import build_processes
+    return build_processes(specs)
+
+
+def test_validate_demand_options(tmp_path):
+    from cityca.validate import make_demand
+    g = city_with_history()
+    g.meta["population_series"] = {"years": [2000, 2010], "population": [1e5, 2e5]}
+    for cfg, kind in (({"type": "trend"}, "constant"), ({"type": "fit", "law": "linear"}, "constant"),
+                      ({"type": "population"}, "series")):
+        spec, info = make_demand(cfg, g, 2006.0, 2008.0)
+        assert spec["type"] == kind and info["demand"]
+
+
+def test_learned_factor_freeze_ignores_density_changes(tmp_path):
+    from cityca.engine import FACTORS
+    from cityca.learn import train_from_scenario
+    g = city_with_history()
+    model, _ = train_from_scenario({}, g, 2006, learner="logistic", importance=False)
+    path = model.save(tmp_path / "m.joblib")
+    frozen = FACTORS.build({"type": "learned", "model_file": str(path), "freeze": ["density"]})
+    live = FACTORS.build({"type": "learned", "model_file": str(path)})
+    p0f, p0l = frozen(g, None).copy(), live(g, None).copy()
+    g["density"] = np.clip(g["density"] + 0.3, 0, 1)  # densification happens
+    assert np.allclose(frozen(g, None), p0f)
+    assert not np.allclose(live(g, None), p0l)
+    g.urbanize(np.pad(np.ones((2, 2), bool), ((40, 18), (40, 18))))  # growth still matters
+    assert not np.allclose(frozen(g, None), p0f)

@@ -17,6 +17,8 @@ import json
 import numpy as np
 from scipy import ndimage
 
+_MATRIX_CACHE: dict = {}
+
 TRANSFORMS = {
     "none": lambda a: a,
     "log1p": lambda a: np.log1p(np.maximum(a, 0)),
@@ -46,6 +48,11 @@ DEFAULT_FEATURES = [
     {"layer": "slope"},
     {"layer": "elevation"},
     {"layer": "excluded"},
+    # Momentum: what changed over the last lag period (zeros if the city has no lag layers)
+    {"layer": "recent_growth", "params": {"sigma": 4}, "name": "recent_growth_s4"},
+    {"layer": "recent_growth", "params": {"sigma": 12}, "name": "recent_growth_s12"},
+    {"layer": "density_change", "params": {"sigma": 0}, "name": "own_density_change"},
+    {"layer": "density_change", "params": {"sigma": 2}, "name": "density_change_s2"},
 ]
 
 
@@ -86,8 +93,22 @@ class FeatureSet:
         return a
 
     def matrix(self, grid) -> np.ndarray:
-        """(H, W, F) feature stack for the grid's current state."""
-        return np.stack([self.layer(grid, s) for s in self.specs], axis=-1).astype(np.float32)
+        """(H, W, F) feature stack for the grid's current state.
+
+        Cached per grid state, so a learned growth model and a learned density
+        model with the same features compute them once per step.
+        """
+        key = (self.to_json(), id(grid), grid.year,
+               tuple(grid.version(k) for k in ("urban", "density", "roads", "water", "excluded",
+                                               "anchor_potential", "rail", "__anchors__")))
+        hit = _MATRIX_CACHE.get(key[:2])
+        if hit is not None and hit[0] == key:
+            return hit[1]
+        m = np.stack([self.layer(grid, s) for s in self.specs], axis=-1).astype(np.float32)
+        _MATRIX_CACHE[key[:2]] = (key, m)
+        if len(_MATRIX_CACHE) > 8:
+            _MATRIX_CACHE.pop(next(iter(_MATRIX_CACHE)))
+        return m
 
     def to_json(self) -> str:
         return json.dumps(self.specs)

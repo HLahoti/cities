@@ -155,6 +155,32 @@ The saved model plugs into any simulation as a factor:
 Set `"start_from_observed": 2015` in a scenario to forecast from the real 2015
 map instead of the city file's start year.
 
+**Momentum.** A city can carry *lag* layers, `urban_lag` and `density_lag`,
+which hold its state `meta.lag_years` earlier. They feed the
+`recent_growth` and `density_change` features. A `track_lags` process, added
+automatically, keeps them current during simulations.
+
+**Freezing density inputs.** `{"type": "learned", ..., "freeze": ["density",
+"density_change"]}` keeps the growth model's density-based inputs at their
+start-of-forecast values. Use it when a densification process also runs:
+otherwise the process rewrites the cells' built share, which is the growth
+model's strongest input.
+
+**Learned densification.** `cityca.learn.densify.DensityModel` is a two-part
+model trained on observed density snapshots: a classifier for *whether* a
+cell densifies in a period, and a regressor for *by how much*. Use it in a
+simulation with
+`{"type": "learned_densify", "model_file": ..., "mode": "expected",
+"nonurban": false}`.
+
+**Growth amount.** `cityca.engine.demand_fit` fits how much the city grows
+to an observed area history. Laws: `linear`, `exponential`, `logistic`, and
+the West–Brown–Enquist `allometric` law, with `auto` picking whichever best
+predicts the last training point. Alternatively,
+`population_demand` drives growth from a population path via the scaling
+law A = c·P^β. Rolling validation selects these per method with `"demand":
+{"type": "trend" | "fit" | "population"}`.
+
 ### Calibration and validation
 
 * `cityca calibrate` defaults to `--search cem`, an iterative cross-entropy
@@ -175,7 +201,9 @@ map instead of the city file's start year.
   The results show how accuracy holds up with forecast horizon
   (`validation.png`, `validation.json`). Method types are `potential`,
   `learned`, `calibrated` (re-calibrated at each origin with CEM) and `fixed`.
-  See `cityca/validate.py`.
+  Each method can choose its `demand` and `processes`; learned densification
+  is retrained at each origin. See `cityca/validate.py`.
+  `tools/summarize_validation.py` prints per-method tables.
 
 ### Phase 3 — anchors and the potential field (`cityca/anchors`)
 

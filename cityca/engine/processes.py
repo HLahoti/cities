@@ -85,5 +85,97 @@ class Densify(Process):
         return {"mean_density": float(d[u].mean()) if u.any() else 0.0}
 
 
+@PROCESSES.register("learned_densify")
+class LearnedDensify(Process):
+    """Densification from a trained ``cityca.learn.densify.DensityModel``.
+
+    Each step every cell in the density domain densifies with probability
+    1 − (1 − p)^(dt/period) by the predicted amount (``mode="stochastic"``,
+    lumpy like real infill), or by that probability × amount
+    (``mode="expected"``, smooth). Newly urban cells start at the model's
+    ``new_density`` (overridable). Non-urban cells may thicken (``nonurban``)
+    but are capped at ``nonurban_cap``: becoming urban is the growth model's job.
+    """
+    name = "learned_densify"
+    _cache: dict = {}
+
+    def __init__(self, model_file: str, mode: str = "stochastic", new_density: float | None = None,
+                 nonurban_cap: float = 0.24, init_radius: float = 1.5, nonurban: bool = True):
+        self.model_file, self.mode = str(model_file), mode
+        import os
+        key = (self.model_file, os.path.getmtime(self.model_file))  # reload if the file changes
+        if key not in self._cache:
+            from ..learn.densify import DensityModel
+            self._cache[key] = DensityModel.load(self.model_file)
+        self.model = self._cache[key]
+        self.new_density = self.model.new_density if new_density is None else new_density
+        self.nonurban_cap, self.init_radius = nonurban_cap, init_radius
+        self.nonurban = nonurban  # False: only urban cells densify
+
+    def reset(self, grid) -> None:
+        Densify.reset(self, grid)
+
+    def step(self, grid, ctx) -> dict:
+        d = grid.ensure("density")
+        u = grid["urban"] > 0
+        new = u & (grid["urbanized_at"] == grid.year)
+        d[new] = np.maximum(d[new], self.new_density)
+        grid.touch("density")
+        p, m, dom = self.model.predict_grid(grid)
+        p_step = 1.0 - (1.0 - p) ** (ctx.dt / self.model.period)
+        if self.mode == "stochastic":
+            inc = np.where(ctx.rng.random(grid.shape) < p_step, m, 0.0)
+        elif self.mode == "expected":
+            inc = p_step * m
+        else:
+            raise ValueError(f"Unknown mode '{self.mode}'")
+        inc[~dom] = 0.0
+        if not self.nonurban:
+            inc[~u] = 0.0
+        d += inc
+        np.minimum(d, np.where(u, 1.0, np.maximum(self.nonurban_cap, d - inc)), out=d)
+        grid.touch("density")
+        return {"mean_density": float(d[u].mean()) if u.any() else 0.0}
+
+
+@PROCESSES.register("track_lags")
+class TrackLags(Process):
+    """Keeps ``urban_lag`` / ``density_lag`` equal to the state ``lag_years`` ago.
+
+    Added automatically by ``Simulation`` when the grid carries lag layers, so
+    momentum features stay current during a forecast.
+    """
+    name = "track_lags"
+
+    def __init__(self, lag_years: float | None = None):
+        self.lag_years = lag_years
+        self.snapshots: list = []
+
+    def reset(self, grid) -> None:
+        self.lag = float(self.lag_years or grid.meta.get("lag_years", 2))
+        self.snapshots = []
+        if "urban_lag" in grid.layers:
+            dl = grid["density_lag"] if "density_lag" in grid.layers else None
+            self.snapshots.append((grid.year - self.lag, grid["urban_lag"].copy(),
+                                   None if dl is None else dl.copy()))
+        self._push(grid)
+
+    def _push(self, grid):
+        d = grid["density"].copy() if "density" in grid.layers else None
+        self.snapshots.append((grid.year, grid["urban"].copy(), d))
+
+    def step(self, grid, ctx) -> dict:
+        self._push(grid)
+        target = grid.year - self.lag
+        old = [s for s in self.snapshots if s[0] <= target + 1e-9]
+        if old:
+            y, u, d = old[-1]
+            grid["urban_lag"] = u
+            if d is not None:
+                grid["density_lag"] = d
+            self.snapshots = [s for s in self.snapshots if s[0] >= y]
+        return {}
+
+
 def build_processes(specs) -> list[Process]:
     return [PROCESSES.build(s) for s in (specs or [])]

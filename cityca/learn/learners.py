@@ -58,12 +58,20 @@ class LearnedModel:
     def predict_proba(self, X) -> np.ndarray:
         return self.estimator.predict_proba(X)[:, 1]
 
-    def predict_grid(self, grid) -> np.ndarray:
-        """Probability surface over developable cells (0 elsewhere)."""
+    def predict_grid(self, grid, frozen: tuple | None = None) -> np.ndarray:
+        """Probability surface over developable cells (0 elsewhere).
+
+        ``frozen`` = (column indices, (H, W, k) values) replaces those feature
+        columns, e.g. to keep density-based inputs at their start-of-forecast values.
+        """
         mask = grid["developable"]
         out = np.zeros(grid.shape)
         if mask.any():
-            out[mask] = self.predict_proba(self.features.matrix(grid)[mask])
+            X = self.features.matrix(grid)
+            if frozen is not None:
+                X = X.copy()
+                X[..., frozen[0]] = frozen[1]
+            out[mask] = self.predict_proba(X[mask])
         return out
 
     # --- persistence ---------------------------------------------------------------------
